@@ -21,8 +21,8 @@ package org.astro.driver;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.astro.driver.entity.UniformWordSource;
 import org.astro.driver.entity.WordCount;
-import org.astro.driver.entity.WordSource;
 import org.astro.driver.entity.WordSplitter;
 
 import java.util.concurrent.TimeUnit;
@@ -45,24 +45,23 @@ public class WordCountJob {
             outputPath = params.get("output");
         }
 
-        WordSource wordSource;
+        UniformWordSource wordSource;
         if (params.has("config-string")) {
             String configString = params.get("config-string");
             String[] strParams = configString.split(",");
             System.out.println(strParams.length);
-            wordSource = new WordSource(
-                Integer.parseInt(strParams[0]),
-                Integer.parseInt(strParams[1]),
-                Integer.parseInt(strParams[2]),
-                Long.parseLong(strParams[3]),
-                TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[4])),
-                TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[5])));
+            wordSource = new UniformWordSource(
+                TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[0])),
+                TimeUnit.SECONDS.toMillis(Long.parseLong(strParams[1])),
+                Integer.parseInt(strParams[2])
+            );
         } else {
-            wordSource = new WordSource();
+            wordSource = new UniformWordSource();
         }
 
         DataStream<String> textStream = env
             .addSource(wordSource)
+            .setParallelism(3)
             .name("stream");
 
         DataStream<WordCount> splitWords = textStream
