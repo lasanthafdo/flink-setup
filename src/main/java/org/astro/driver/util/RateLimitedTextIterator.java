@@ -87,7 +87,7 @@ public final class RateLimitedTextIterator implements Iterator<String>, Serializ
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            burstCount = 0;
+            burstCount = 1;
         }
 
         return data.get(index++);

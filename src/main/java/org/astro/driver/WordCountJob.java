@@ -18,9 +18,13 @@
 
 package org.astro.driver;
 
+import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.astro.driver.entity.UniformWordSource;
 import org.astro.driver.entity.WordCount;
 import org.astro.driver.entity.WordSplitter;
@@ -38,6 +42,8 @@ public class WordCountJob {
         // set up the execution environment
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         String outputPath = "word-count-output";
+        int sourceParallelism = 3;
+        UniformWordSource wordSource;
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(params);
 
@@ -45,23 +51,23 @@ public class WordCountJob {
             outputPath = params.get("output");
         }
 
-        UniformWordSource wordSource;
         if (params.has("config-string")) {
             String configString = params.get("config-string");
             String[] strParams = configString.split(",");
-            System.out.println(strParams.length);
+            System.out.println("Number of config parameters received: " + strParams.length);
             wordSource = new UniformWordSource(
                 TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[0])),
                 TimeUnit.SECONDS.toMillis(Long.parseLong(strParams[1])),
                 Integer.parseInt(strParams[2])
             );
+            sourceParallelism = Integer.parseInt(strParams[3]);
         } else {
             wordSource = new UniformWordSource();
         }
 
         DataStream<String> textStream = env
             .addSource(wordSource)
-            .setParallelism(3)
+            .setParallelism(sourceParallelism)
             .name("stream");
 
         DataStream<WordCount> splitWords = textStream
@@ -73,9 +79,21 @@ public class WordCountJob {
             .keyBy(WordCount::getWord).sum("count")
             .name("word-count");
 
+        final StreamingFileSink<WordCount> fileSink = StreamingFileSink
+            .forRowFormat(new Path(outputPath), new SimpleStringEncoder<WordCount>("UTF-8"))
+            .withRollingPolicy(
+                DefaultRollingPolicy.builder()
+                    .withRolloverInterval(TimeUnit.MINUTES.toMillis(2))
+                    .withInactivityInterval(TimeUnit.MINUTES.toMillis(1))
+                    .withMaxPartSize(1024 * 1024 * 1024)
+                    .build())
+            .build();
+
         countWords
-            .writeAsText(outputPath)
+            .addSink(fileSink)
             .name("count-sink");
+
+        env.enableCheckpointing(TimeUnit.MINUTES.toMillis(1));
 
         env.execute("Word Count");
     }
