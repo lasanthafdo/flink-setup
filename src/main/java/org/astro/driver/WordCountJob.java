@@ -55,12 +55,13 @@ public class WordCountJob {
             String configString = params.get("config-string");
             String[] strParams = configString.split(",");
             System.out.println("Number of config parameters received: " + strParams.length);
+            sourceParallelism = Integer.parseInt(strParams[3]);
             wordSource = new UniformWordSource(
                 TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[0])),
                 TimeUnit.SECONDS.toMillis(Long.parseLong(strParams[1])),
-                Integer.parseInt(strParams[2])
+                Integer.parseInt(strParams[2]),
+                sourceParallelism
             );
-            sourceParallelism = Integer.parseInt(strParams[3]);
         } else {
             wordSource = new UniformWordSource();
         }
