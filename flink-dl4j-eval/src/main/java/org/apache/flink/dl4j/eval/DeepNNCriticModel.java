@@ -61,148 +61,152 @@ import java.util.Random;
  */
 public class DeepNNCriticModel {
 
-	public static boolean visualize = true;
-	//Random number generator seed, for reproducability
-	public static final int seed = 12345;
-	//Number of epochs (full passes of the data)
-	public static final int nEpochs = 100;
-	//How frequently should we plot the network output?
-	private static final int plotFrequency = 50;
-	//Number of data points
-	private static final int nSamples = 200;
-	//Batch size: i.e., each epoch has nSamples/batchSize parameter updates
-	public static final int batchSize = 10;
-	//Network learning rate
-	public static final double learningRate = 0.01;
-	public static final Random rng = new Random(seed);
-	public static final int numInputs = 8;
-	private static final int numOutputs = 1;
+    public static boolean visualize = true;
+    //Random number generator seed, for reproducability
+    public static final int seed = 680;
+    //Number of epochs (full passes of the data)
+    public static final int nEpochs = 50;
+    //How frequently should we plot the network output?
+    private static final int plotFrequency = 100;
+    //Number of data points
+    //Batch size: i.e., each epoch has nSamples/batchSize parameter updates
+    public static final int batchSize = 50;
+    //Network learning rate
+    public static final double learningRate = 0.005;
+    public static final double nesterovsMomentum = 0.9;
+    public static final Random rng = new Random(seed);
+    public static final int numInputs = 392;
+    private static final int numOutputs = 1;
 
 
-	public static void main(final String[] args) throws Exception {
+    public static void main(final String[] args) throws Exception {
 
-		//Switch these two options to do different functions with different networks
-		final MultiLayerConfiguration conf = getDeepDenseLayerNetworkConfiguration();
+        //Switch these two options to do different functions with different networks
+        final MultiLayerConfiguration conf = getDeepDenseLayerNetworkConfiguration();
 
-		//Create the network
-		final MultiLayerNetwork net = new MultiLayerNetwork(conf);
-		net.init();
-		net.setListeners(new ScoreIterationListener(1));
+        //Create the network
+        final MultiLayerNetwork net = new MultiLayerNetwork(conf);
+        net.init();
+        net.setListeners(new ScoreIterationListener(1));
 
-		String dataLocalPath = "/home/lasantha/flink-tests/data/training-data";
-		String trainFilename = new File(dataLocalPath, "state_transitions_cured_train.csv").getAbsolutePath();
-		String testFilename = new File(dataLocalPath, "state_transitions_cured_test.csv").getAbsolutePath();
-		DataSet ds = readCSVDataset(trainFilename);
-		DataSetIterator testDsIter = readCSVWithDatasetIterator(testFilename);
+        String dataLocalPath = "/home/m34ferna/flink-tests/data/training-data";
+        String trainFilename = new File(dataLocalPath, "state_transitions_cured_train.csv").getAbsolutePath();
+        String testFilename = new File(dataLocalPath, "state_transitions_cured_test.csv").getAbsolutePath();
+        DataSet ds = readCSVDataset(trainFilename);
+        DataSetIterator testDsIter = readCSVWithDatasetIterator(testFilename);
 
 
-		//Train the network on the full data set, and evaluate in periodically
-		final INDArray[] networkPredictions = new INDArray[nEpochs / plotFrequency];
-		for (int i = 0; i < nEpochs; i++) {
-			net.fit(ds);
-			if ((i + 1) % plotFrequency == 0) {
-				testDsIter.reset();
-				networkPredictions[i / plotFrequency] = net.output(testDsIter, false);
-			}
-		}
+        //Train the network on the full data set, and evaluate in periodically
+        final INDArray[] networkPredictions = new INDArray[nEpochs / plotFrequency];
+        for (int i = 0; i < nEpochs; i++) {
+            net.fit(ds);
+            if ((i + 1) % plotFrequency == 0) {
+                testDsIter.reset();
+                networkPredictions[i / plotFrequency] = net.output(testDsIter, false);
+            }
+        }
 
-		//Plots the target data and the network predictions by default
+        //Plots the target data and the network predictions by default
 //        if (visualize) {
 //            plot(fn, testDsIter.next().getFeatures(), fn.getFunctionValues(testDsIter.next().getFeatures()), networkPredictions);
 //        }
-		for (INDArray networkPrediction : networkPredictions) {
-			System.out.println(networkPrediction);
-		}
-	}
+        for (INDArray networkPrediction : networkPredictions) {
+            System.out.println(networkPrediction);
+        }
+    }
 
-	private static DataSet readCSVDataset(String filename) throws IOException, InterruptedException {
-		RecordReader rr = new CSVRecordReader(1);
-		rr.initialize(new FileSplit(new File(filename)));
+    private static DataSet readCSVDataset(String filename) throws IOException, InterruptedException {
+        RecordReader rr = new CSVRecordReader(1);
+        rr.initialize(new FileSplit(new File(filename)));
 
-		DataSetIterator iter = new RecordReaderDataSetIterator(rr, batchSize, 0, 0, true);
-		return iter.next();
-	}
+        DataSetIterator iter = new RecordReaderDataSetIterator(rr, batchSize, 0, 0, true);
+        return iter.next();
+    }
 
-	private static DataSetIterator readCSVWithDatasetIterator(String filename) throws IOException, InterruptedException {
-		RecordReader rr = new CSVRecordReader(1);
-		rr.initialize(new FileSplit(new File(filename)));
+    private static DataSetIterator readCSVWithDatasetIterator(String filename) throws IOException, InterruptedException {
+        RecordReader rr = new CSVRecordReader(1);
+        rr.initialize(new FileSplit(new File(filename)));
 
-		return new RecordReaderDataSetIterator(rr, batchSize);
-	}
+        return new RecordReaderDataSetIterator(rr, batchSize);
+    }
 
-	/**
-	 * Returns the network configuration, 2 hidden DenseLayers of size 50.
-	 */
-	private static MultiLayerConfiguration getDeepDenseLayerNetworkConfiguration() {
-		final int numHiddenNodes = 50;
-		return new NeuralNetConfiguration.Builder()
-			.seed(seed)
-			.weightInit(WeightInit.LECUN_UNIFORM)
-			.updater(new Nesterovs(learningRate, 0.9))
-			.list()
-			.layer(new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodes)
-				.activation(Activation.TANH).build())
-			.layer(new DenseLayer.Builder().nIn(numHiddenNodes).nOut(numHiddenNodes)
-				.activation(Activation.TANH).build())
-			.layer(new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
-				.activation(Activation.IDENTITY)
-				.nIn(numHiddenNodes).nOut(numOutputs).build())
-			.build();
-	}
+    /**
+     * Returns the network configuration, 2 hidden DenseLayers of size 50.
+     */
+    private static MultiLayerConfiguration getDeepDenseLayerNetworkConfiguration() {
+        final int numHiddenNodes = 512;
+        return new NeuralNetConfiguration.Builder()
+            .seed(seed)
+            .weightInit(WeightInit.LECUN_UNIFORM)
+            .updater(new Nesterovs(learningRate, nesterovsMomentum))
+            .list()
+            .layer(new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodes)
+                .activation(Activation.TANH).build())
+            .layer(new DenseLayer.Builder().nIn(numHiddenNodes).nOut(256)
+                .activation(Activation.TANH).build())
+            .layer(new DenseLayer.Builder().nIn(256).nOut(64)
+                .activation(Activation.TANH).build())
+            .layer(new DenseLayer.Builder().nIn(64).nOut(32)
+                .activation(Activation.TANH).build())
+            .layer(new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                .activation(Activation.IDENTITY)
+                .nIn(32).nOut(numOutputs).build())
+            .build();
+    }
 
-	/**
-	 * Create a DataSetIterator for training
-	 *
-	 * @param x         X values
-	 * @param function  Function to evaluate
-	 * @param batchSize Batch size (number of quickstartexamples for every call of DataSetIterator.next())
-	 * @param rng       Random number generator (for repeatability)
-	 */
-	@SuppressWarnings("SameParameterValue")
-	private static DataSetIterator getTrainingData(final INDArray x, final MathFunction function, final int batchSize, final Random rng) {
-		final INDArray y = function.getFunctionValues(x);
-		final DataSet allData = new DataSet(x, y);
+    /**
+     * Create a DataSetIterator for training
+     *
+     * @param x         X values
+     * @param function  Function to evaluate
+     * @param batchSize Batch size (number of quickstartexamples for every call of DataSetIterator.next())
+     * @param rng       Random number generator (for repeatability)
+     */
+    @SuppressWarnings("SameParameterValue")
+    private static DataSetIterator getTrainingData(final INDArray x, final MathFunction function, final int batchSize, final Random rng) {
+        final INDArray y = function.getFunctionValues(x);
+        final DataSet allData = new DataSet(x, y);
 
-		final List<DataSet> list = allData.asList();
-		Collections.shuffle(list, rng);
-		return new ListDataSetIterator<>(list, batchSize);
-	}
+        final List<DataSet> list = allData.asList();
+        Collections.shuffle(list, rng);
+        return new ListDataSetIterator<>(list, batchSize);
+    }
 
-	//Plot the data
-	private static void plot(final MathFunction function, final INDArray x, final INDArray y, final INDArray... predicted) {
-		final XYSeriesCollection dataSet = new XYSeriesCollection();
-		addSeries(dataSet, x, y, "True Function (Labels)");
+    //Plot the data
+    private static void plot(final MathFunction function, final INDArray x, final INDArray y, final INDArray... predicted) {
+        final XYSeriesCollection dataSet = new XYSeriesCollection();
+        addSeries(dataSet, x, y, "True Function (Labels)");
 
-		for (int i = 0; i < predicted.length; i++) {
-			addSeries(dataSet, x, predicted[i], String.valueOf(i));
-		}
+        for (int i = 0; i < predicted.length; i++) {
+            addSeries(dataSet, x, predicted[i], String.valueOf(i));
+        }
 
-		final JFreeChart chart = ChartFactory.createXYLineChart(
-			"Regression Example - " + function.getName(),      // chart title
-			"X",                        // x axis label
-			function.getName() + "(X)", // y axis label
-			dataSet,                    // data
-			PlotOrientation.VERTICAL,
-			true,                       // include legend
-			true,                       // tooltips
-			false                       // urls
-		);
+        final JFreeChart chart = ChartFactory.createXYLineChart(
+            "Regression Example - " + function.getName(),      // chart title
+            "X",                        // x axis label
+            function.getName() + "(X)", // y axis label
+            dataSet,                    // data
+            PlotOrientation.VERTICAL,
+            true,                       // include legend
+            true,                       // tooltips
+            false                       // urls
+        );
 
-		final ChartPanel panel = new ChartPanel(chart);
+        final ChartPanel panel = new ChartPanel(chart);
 
-		final JFrame f = new JFrame();
-		f.add(panel);
-		f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-		f.pack();
+        final JFrame f = new JFrame();
+        f.add(panel);
+        f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        f.pack();
 
-		f.setVisible(true);
-	}
+        f.setVisible(true);
+    }
 
-	private static void addSeries(final XYSeriesCollection dataSet, final INDArray x, final INDArray y, final String label) {
-		final double[] xd = x.data().asDouble();
-		final double[] yd = y.data().asDouble();
-		final XYSeries s = new XYSeries(label);
-		for (int j = 0; j < xd.length; j++) s.add(xd[j], yd[j]);
-		dataSet.addSeries(s);
-	}
+    private static void addSeries(final XYSeriesCollection dataSet, final INDArray x, final INDArray y, final String label) {
+        final double[] xd = x.data().asDouble();
+        final double[] yd = y.data().asDouble();
+        final XYSeries s = new XYSeries(label);
+        for (int j = 0; j < xd.length; j++) s.add(xd[j], yd[j]);
+        dataSet.addSeries(s);
+    }
 }
