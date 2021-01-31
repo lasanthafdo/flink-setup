@@ -65,24 +65,25 @@ public class DeepNNCriticModel {
     //Random number generator seed, for reproducability
     public static final int seed = 680;
     //Number of epochs (full passes of the data)
-    public static final int nEpochs = 50;
+    public static final int nEpochs = 200;
     //How frequently should we plot the network output?
-    private static final int plotFrequency = 100;
+    private static final int plotFrequency = 50;
     //Number of data points
     //Batch size: i.e., each epoch has nSamples/batchSize parameter updates
     public static final int batchSize = 50;
     //Network learning rate
-    public static final double learningRate = 0.005;
+    public static final double learningRate = 0.01;
     public static final double nesterovsMomentum = 0.9;
     public static final Random rng = new Random(seed);
-    public static final int numInputs = 392;
+    public static final int numInputs = 460;
     private static final int numOutputs = 1;
+    private static final int numHiddenNodesL1 = 64;
 
 
     public static void main(final String[] args) throws Exception {
 
         //Switch these two options to do different functions with different networks
-        final MultiLayerConfiguration conf = getDeepDenseLayerNetworkConfiguration();
+        final MultiLayerConfiguration conf = getCustomConfiguration();
 
         //Create the network
         final MultiLayerNetwork net = new MultiLayerNetwork(conf);
@@ -130,6 +131,38 @@ public class DeepNNCriticModel {
         return new RecordReaderDataSetIterator(rr, batchSize);
     }
 
+    private static MultiLayerConfiguration getCustomConfiguration() {
+        return new NeuralNetConfiguration.Builder()
+            .seed(rng.nextInt())
+            .weightInit(WeightInit.XAVIER)
+            .updater(new Nesterovs(learningRate, nesterovsMomentum))
+            .list()
+            .layer(new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodesL1)
+                .activation(Activation.RELU).build())
+            .layer(new DenseLayer.Builder().nIn(numHiddenNodesL1).nOut(numHiddenNodesL1)
+                .activation(Activation.TANH).build())
+            .layer(new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                .activation(Activation.TANH)
+                .nIn(numHiddenNodesL1).nOut(numOutputs).build())
+            .build();
+    }
+
+    private static MultiLayerConfiguration getSimpleDNNConfiguration() {
+        return new NeuralNetConfiguration.Builder()
+            .seed(rng.nextInt())
+            .weightInit(WeightInit.XAVIER)
+            .updater(new Nesterovs(learningRate, nesterovsMomentum))
+            .list()
+            .layer(new DenseLayer.Builder().nIn(numInputs).nOut(numHiddenNodesL1)
+                .activation(Activation.TANH).build())
+            .layer(new DenseLayer.Builder().nIn(numHiddenNodesL1).nOut(numHiddenNodesL1)
+                .activation(Activation.TANH).build())
+            .layer(new OutputLayer.Builder(LossFunctions.LossFunction.MSE)
+                .activation(Activation.IDENTITY)
+                .nIn(numHiddenNodesL1).nOut(numOutputs).build())
+            .build();
+    }
+
     /**
      * Returns the network configuration, 2 hidden DenseLayers of size 50.
      */
@@ -144,7 +177,11 @@ public class DeepNNCriticModel {
                 .activation(Activation.TANH).build())
             .layer(new DenseLayer.Builder().nIn(numHiddenNodes).nOut(256)
                 .activation(Activation.TANH).build())
-            .layer(new DenseLayer.Builder().nIn(256).nOut(64)
+            .layer(new DenseLayer.Builder().nIn(256).nOut(128)
+                .activation(Activation.TANH).build())
+            .layer(new DenseLayer.Builder().nIn(128).nOut(128)
+                .activation(Activation.TANH).build())
+            .layer(new DenseLayer.Builder().nIn(128).nOut(64)
                 .activation(Activation.TANH).build())
             .layer(new DenseLayer.Builder().nIn(64).nOut(32)
                 .activation(Activation.TANH).build())
