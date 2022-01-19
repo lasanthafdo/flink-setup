@@ -40,10 +40,10 @@ public class WordSplitter extends KeyedProcessFunction<String, String, WordCount
         // emit the pairs
         for (String token : tokens) {
             if (token.length() > 0) {
-                WordCount alert = new WordCount();
-                alert.setWord(token);
-                alert.setCount(1);
-                collector.collect(alert);
+                WordCount currentWordCount = new WordCount();
+                currentWordCount.setWord(token);
+                currentWordCount.setCount(1);
+                collector.collect(currentWordCount);
             }
         }
     }
