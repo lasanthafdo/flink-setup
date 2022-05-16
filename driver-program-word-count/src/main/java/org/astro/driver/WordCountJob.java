@@ -43,7 +43,8 @@ public class WordCountJob {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		String outputPath = "word-count-output";
 		int sourceParallelism = 3;
-		int operatorParallelism = 3;
+		int mapParellelism = 3;
+		int reduceParallelism = 3;
 		int sinkParallelism = 3;
 		SplittableWordSource wordSource;
 		// make parameters available in the web interface
@@ -58,8 +59,9 @@ public class WordCountJob {
 			String[] strParams = configString.split(",");
 			System.out.println("Number of config parameters received: " + strParams.length);
 			sourceParallelism = Integer.parseInt(strParams[1]);
-			operatorParallelism = Integer.parseInt(strParams[2]);
-			sinkParallelism = Integer.parseInt(strParams[3]);
+			mapParellelism = Integer.parseInt(strParams[2]);
+			reduceParallelism = Integer.parseInt(strParams[3]);
+			sinkParallelism = Integer.parseInt(strParams[4]);
 			wordSource = new SplittableWordSource(
 				TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[0])),
 				sourceParallelism
@@ -76,7 +78,7 @@ public class WordCountJob {
 		DataStream<WordCount> splitWords = textStream
 			.keyBy(String::toString)
 			.process(new WordSplitter())
-			.setParallelism(operatorParallelism)
+			.setParallelism(mapParellelism)
 			.name("word-splitter");
 
 		final StreamingFileSink<WordCount> fileSink = StreamingFileSink
@@ -91,7 +93,7 @@ public class WordCountJob {
 
 		DataStream<WordCount> countWords = splitWords
 			.keyBy(WordCount::getWord).sum("count")
-			.setParallelism(operatorParallelism)
+			.setParallelism(reduceParallelism)
 			.name("word-count");
 
 		countWords.addSink(fileSink)
