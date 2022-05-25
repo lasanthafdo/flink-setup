@@ -51,11 +51,19 @@ public class SplittableWordSource extends FromSplittableIteratorFunction<String>
 		private final int maxSplits;
 		private final long startTime;
 
+		private long burstStartTime;
+
+		private final int burstThreshold;
+
+		private int burstCount;
+
 		private SplittableRateLimitedTextIterator(final long totalDuration, final int maxSplits) {
 			this.totalDuration = totalDuration;
 			this.maxSplits = maxSplits;
 			this.numberOfSplits = maxSplits;
 			this.startTime = System.currentTimeMillis();
+			this.burstThreshold = 25_000;
+			this.burstStartTime = System.currentTimeMillis();
 		}
 
 		public boolean hasNext() {
@@ -64,6 +72,18 @@ public class SplittableWordSource extends FromSplittableIteratorFunction<String>
 		}
 
 		public String next() {
+			if (burstCount++ >= burstThreshold) {
+				long sleepTime = 1000 - (System.currentTimeMillis() - burstStartTime);
+				if(sleepTime > 0) {
+					try {
+						Thread.sleep(sleepTime);
+					} catch (InterruptedException e) {
+						throw new RuntimeException(e);
+					}
+				}
+				burstCount = 1;
+				burstStartTime = System.currentTimeMillis();
+			}
 			return this.innerArray[nextSplit.get()].next();
 		}
 

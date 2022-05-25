@@ -73,13 +73,13 @@ public class WordCountJob {
 		DataStream<String> textStream = env
 			.addSource(wordSource)
 			.setParallelism(sourceParallelism)
-			.name("sentence-stream");
+			.name("sentence-stream").disableChaining();
 
 		DataStream<WordCount> splitWords = textStream
 			.keyBy(String::toString)
 			.process(new WordSplitter())
 			.setParallelism(mapParellelism)
-			.name("word-splitter");
+			.name("word-splitter").disableChaining();
 
 		final StreamingFileSink<WordCount> fileSink = StreamingFileSink
 			.forRowFormat(new Path(outputPath), new SimpleStringEncoder<WordCount>("UTF-8"))
@@ -94,11 +94,11 @@ public class WordCountJob {
 		DataStream<WordCount> countWords = splitWords
 			.keyBy(WordCount::getWord).sum("count")
 			.setParallelism(reduceParallelism)
-			.name("word-count");
+			.name("word-count").disableChaining();
 
 		countWords.addSink(fileSink)
 			.setParallelism(sinkParallelism)
-			.name("count-sink");
+			.name("count-sink").disableChaining();
 
 		env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
 
