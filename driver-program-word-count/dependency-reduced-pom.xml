@@ -88,7 +88,7 @@
               </filters>
               <transformers>
                 <transformer>
-                  <mainClass>org.astro.driver.WordCountJob</mainClass>
+                  <mainClass>org.astro.driver.WordCountWithWatermarks</mainClass>
                 </transformer>
               </transformers>
             </configuration>
@@ -112,7 +112,7 @@
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-streaming-java_2.11</artifactId>
-      <version>1.11.2-SNAPSHOT</version>
+      <version>1.14.2</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -120,7 +120,15 @@
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>flink-runtime_2.11</artifactId>
+          <artifactId>flink-file-sink-common</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-runtime</artifactId>
+          <groupId>org.apache.flink</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>flink-scala_2.11</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
@@ -140,11 +148,11 @@
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-clients_2.11</artifactId>
-      <version>1.11.2-SNAPSHOT</version>
+      <version>1.14.2</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
-          <artifactId>flink-optimizer_2.11</artifactId>
+          <artifactId>flink-optimizer</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
@@ -156,7 +164,7 @@
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>flink-runtime_2.11</artifactId>
+          <artifactId>flink-runtime</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
@@ -168,30 +176,30 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
-      <version>2.12.1</version>
+      <version>2.17.0</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>
-      <version>2.12.1</version>
+      <version>2.17.0</version>
       <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
-      <version>2.12.1</version>
+      <version>2.17.0</version>
       <scope>runtime</scope>
     </dependency>
   </dependencies>
   <properties>
-    <java.version>1.8</java.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <log4j.version>2.12.1</log4j.version>
-    <flink.version>1.11.2-SNAPSHOT</flink.version>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.target>${java.version}</maven.compiler.target>
+    <log4j.version>2.17.0</log4j.version>
+    <flink.version>1.14.2</flink.version>
   </properties>
 </project>
 

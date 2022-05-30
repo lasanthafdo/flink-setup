@@ -18,25 +18,31 @@
 
 package org.astro.driver;
 
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
+import org.apache.flink.api.common.eventtime.*;
+//import org.apache.flink.api.java.tuple.Tuple2;
+import java.time.Duration;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 import org.astro.driver.entity.SplittableWordSource;
 import org.astro.driver.entity.WordCount;
 import org.astro.driver.entity.WordSplitter;
 
-import java.time.Duration;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.time.Instant;
+
+import static org.apache.flink.api.common.eventtime.WatermarkStrategy.forBoundedOutOfOrderness;
 
 /**
  * Skeleton code for the datastream walkthrough
  */
-public class WordCountJob {
+public class WordCountWithWatermarks {
     public static void main(String[] args) throws Exception {
         /* Obtain an execution environment for our streaming task */
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -68,24 +74,28 @@ public class WordCountJob {
         }
 
         /* Construct the data source */
+
+        // 5 minutes = 300000 millis
+        // To generate a number between `max` and `min`, use `random.nextInt(max - min) + min;`
+        Random random = new Random();
+        int randomShift = random.nextInt(600000) - 300000;
+        WatermarkStrategy<String> watermarkStrategy = WatermarkStrategy
+                .<String>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                .withTimestampAssigner((event, timestamp) ->
+                        Instant.now().toEpochMilli() + randomShift);
+
         DataStream<String> textStream = env
                 .addSource(wordSource)
                 .setParallelism(sourceParallelism)
+                .assignTimestampsAndWatermarks(watermarkStrategy)
                 .name("sentence-stream");
 
-        /* Define transformations on the data */
         DataStream<WordCount> splitWords = textStream
                 .keyBy(String::toString)
                 .process(new WordSplitter())
                 .setParallelism(operatorParallelism)
                 .name("word-splitter");
 
-        DataStream<WordCount> countWords = splitWords
-                .keyBy(WordCount::getWord).sum("count")
-                .setParallelism(operatorParallelism)
-                .name("word-count");
-
-        /* Construct the data sink */
         final StreamingFileSink<WordCount> fileSink = StreamingFileSink
                 .forRowFormat(new Path(outputPath), new SimpleStringEncoder<WordCount>("UTF-8"))
                 .withRollingPolicy(
@@ -96,11 +106,16 @@ public class WordCountJob {
                                 .build())
                 .build();
 
+        DataStream<WordCount> countWords = splitWords
+                .keyBy(WordCount::getWord).sum("count")
+                .setParallelism(operatorParallelism)
+                .name("word-count");
+
         countWords.addSink(fileSink)
                 .setParallelism(sinkParallelism)
                 .name("count-sink");
 
-        env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
+        // env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
 
         env.execute("Word Count");
     }
