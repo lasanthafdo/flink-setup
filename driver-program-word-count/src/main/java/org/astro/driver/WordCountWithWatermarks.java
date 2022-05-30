@@ -32,23 +32,32 @@ import org.astro.driver.entity.SplittableWordSource;
 import org.astro.driver.entity.WordCount;
 import org.astro.driver.entity.WordSplitter;
 
+import java.time.Instant;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Skeleton code for the datastream walkthrough
  */
 public class WordCountWithWatermarks {
-    public static void main(String[] args) throws Exception {
-        // Checking input parameters
-        final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
-
-        // set up the execution environment
+    public static void main(String[] args) {
+        /* Obtain an execution environment for our streaming task */
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        String outputPath = "word-count-output";
+
+        /* Consume input parameters from command line */
+        final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
+        env.getConfig().setGlobalJobParameters(params);
+
+        /* Parse command line arguments */
+        String outputPath = "word-count-output";  // Path to the output folder
+        if (params.has("output"))
+            outputPath = params.get("output");
+
         int sourceParallelism = 3;
         int operatorParallelism = 3;
         int sinkParallelism = 3;
         SplittableWordSource wordSource;
+
         // make parameters available in the web interface
         env.getConfig().setGlobalJobParameters(params);
 
@@ -72,52 +81,46 @@ public class WordCountWithWatermarks {
             wordSource = new SplittableWordSource();
         }
 
-        DataStream<String> textStream = env
-            .addSource(wordSource)
-            .setParallelism(sourceParallelism)
-            .name("sentence-stream")
-            .assignTimestampsAndWatermarks(
-                WatermarkStrategy
-                    .<String>forMonotonousTimestamps()
-                //.withTimestampAssigner()
-                // .<String>forBoundedOutOfOrderness(Duration.ofSeconds(5))
-                // .withTimestampAssigner((event, timestamp) -> event.f0)
-            );
+        /* Construct the data source */
 
+        // 5 minutes = 300000 millis
+        // To generate a number between `max` and `min`, use `random.nextInt(max - min) + min;`
+        Random random = new Random();
+        int randomShift = random.nextInt(600000) - 300000;
+        WatermarkStrategy<String> watermarkStrategy = WatermarkStrategy
+                .<String>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                .withTimestampAssigner((event, timestamp) ->
+                        Instant.now().toEpochMilli() + randomShift);
+
+        DataStream<String> textStream = env
+                .addSource(wordSource)
+                .setParallelism(sourceParallelism)
+                .assignTimestampsAndWatermarks(watermarkStrategy)
+                .name("sentence-stream");
 
         DataStream<WordCount> splitWords = textStream
-            .keyBy(String::toString)
-            .process(new WordSplitter())
-            .setParallelism(operatorParallelism)
-            .name("word-splitter");
+                .keyBy(String::toString)
+                .process(new WordSplitter())
+                .setParallelism(operatorParallelism)
+                .name("word-splitter");
 
         final StreamingFileSink<WordCount> fileSink = StreamingFileSink
-            .forRowFormat(new Path(outputPath), new SimpleStringEncoder<WordCount>("UTF-8"))
-            .withRollingPolicy(
-                DefaultRollingPolicy.builder()
-                    .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-                    .withInactivityInterval(TimeUnit.MINUTES.toMillis(10))
-                    .withMaxPartSize(1024 * 1024 * 1024)
-                    .build())
-            .build();
+                .forRowFormat(new Path(outputPath), new SimpleStringEncoder<WordCount>("UTF-8"))
+                .withRollingPolicy(
+                        DefaultRollingPolicy.builder()
+                                .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
+                                .withInactivityInterval(TimeUnit.MINUTES.toMillis(10))
+                                .withMaxPartSize(1024 * 1024 * 1024)
+                                .build())
+                .build();
 
         DataStream<WordCount> countWords = splitWords
-            .keyBy(WordCount::getWord).sum("count")
-            .setParallelism(operatorParallelism)
-            .assignTimestampsAndWatermarks(
-                WatermarkStrategy
-                    .<WordCount>forBoundedOutOfOrderness(Duration.ofSeconds(20))
-                // .withTimestampAssigner((event, timestamp) -> event.f0)
-            )
-            .name("word-count");
+                .keyBy(WordCount::getWord).sum("count")
+                .setParallelism(operatorParallelism)
+                .name("word-count");
 
         countWords.addSink(fileSink)
-            .setParallelism(sinkParallelism)
-            .name("count-sink");
-
-        env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
-
-        env.execute("Word Count");
+                .setParallelism(sinkParallelism)
+                .name("count-sink");
     }
-
 }
