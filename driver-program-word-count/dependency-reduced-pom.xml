@@ -4,7 +4,7 @@
   <groupId>org.apache.flink</groupId>
   <artifactId>wordcount-driver</artifactId>
   <name>Wordcount Driver Program Java</name>
-  <version>0.3</version>
+  <version>0.4</version>
   <url>https://flink.apache.org</url>
   <build>
     <pluginManagement>

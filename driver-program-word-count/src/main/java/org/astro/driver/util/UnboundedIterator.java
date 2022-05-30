@@ -32,7 +32,7 @@ public final class UnboundedIterator implements Iterator<String>, Serializable {
 
 	private final boolean bounded;
 	private final long totalDuration;
-	private final long startTime;
+	private static long startTime = -1L;
 
 	private int index = 0;
 
@@ -51,12 +51,14 @@ public final class UnboundedIterator implements Iterator<String>, Serializable {
 							  final long startTime) {
 		this.bounded = bounded;
 		this.totalDuration = duration;
-		this.startTime = startTime;
+		if(UnboundedIterator.startTime < 0) {
+			UnboundedIterator.startTime = startTime;
+		}
 	}
 
 	@Override
 	public boolean hasNext() {
-		if (totalDuration < 0 || System.currentTimeMillis() - startTime < totalDuration) {
+		if (totalDuration < 0 || System.currentTimeMillis() - UnboundedIterator.startTime < totalDuration) {
 			if (index < data.size()) {
 				return true;
 			} else if (!bounded) {
