@@ -40,7 +40,7 @@ import java.util.concurrent.TimeUnit;
  * Skeleton code for the datastream walkthrough
  */
 public class WordCountWithWatermarks {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         /* Obtain an execution environment for our streaming task */
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -122,5 +122,7 @@ public class WordCountWithWatermarks {
         countWords.addSink(fileSink)
                 .setParallelism(sinkParallelism)
                 .name("count-sink");
+
+        env.execute("Word Count");
     }
 }
