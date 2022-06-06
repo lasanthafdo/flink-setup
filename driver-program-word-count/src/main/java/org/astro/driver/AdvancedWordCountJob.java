@@ -18,15 +18,23 @@
 
 package org.astro.driver;
 
+import org.apache.flink.api.common.functions.CoGroupFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.utils.MultipleParameterTool;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.util.Collector;
 import org.astro.driver.entity.SplittableWordSource;
 import org.astro.driver.entity.WordCount;
+import org.astro.driver.entity.WordCountResult;
 import org.astro.driver.entity.WordSplitter;
 
 import java.util.concurrent.TimeUnit;
@@ -34,37 +42,24 @@ import java.util.concurrent.TimeUnit;
 /**
  * Skeleton code for the datastream walkthrough
  */
-public class WordCountJob {
+public class AdvancedWordCountJob {
 	public static void main(String[] args) throws Exception {
 		// Checking input parameters
 		final MultipleParameterTool params = MultipleParameterTool.fromArgs(args);
 
 		// set up the execution environment
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		String outputPath = "word-count-output";
-		int sourceParallelism = 3;
-		int mapParellelism = 3;
-		int reduceParallelism = 3;
-		int sinkParallelism = 3;
 		SplittableWordSource wordSource;
 		// make parameters available in the web interface
 		env.getConfig().setGlobalJobParameters(params);
-
-		if (params.has("output")) {
-			outputPath = params.get("output");
-		}
 
 		if (params.has("config-string")) {
 			String configString = params.get("config-string");
 			String[] strParams = configString.split(",");
 			System.out.println("Number of config parameters received: " + strParams.length);
-			sourceParallelism = Integer.parseInt(strParams[1]);
-			mapParellelism = Integer.parseInt(strParams[2]);
-			reduceParallelism = Integer.parseInt(strParams[3]);
-			sinkParallelism = Integer.parseInt(strParams[4]);
 			wordSource = new SplittableWordSource(
 				TimeUnit.MINUTES.toMillis(Long.parseLong(strParams[0])),
-				sourceParallelism
+				1
 			);
 		} else {
 			wordSource = new SplittableWordSource();
@@ -72,37 +67,46 @@ public class WordCountJob {
 
 		DataStream<String> textStream = env
 			.addSource(wordSource)
-			.setParallelism(sourceParallelism)
-			.name("sentence-stream").disableChaining();
+			.name("sentence-stream");
 
 		DataStream<WordCount> splitWords = textStream
 			.keyBy(String::toString)
 			.process(new WordSplitter())
-			.setParallelism(mapParellelism)
-			.name("word-splitter").disableChaining();
-
-		final StreamingFileSink<WordCount> fileSink = StreamingFileSink
-			.forRowFormat(new Path(outputPath), new SimpleStringEncoder<WordCount>("UTF-8"))
-			.withRollingPolicy(
-				DefaultRollingPolicy.builder()
-					.withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
-					.withInactivityInterval(TimeUnit.MINUTES.toMillis(10))
-					.withMaxPartSize(1024 * 1024 * 1024)
-					.build())
-			.build();
+			.name("word-splitter");
 
 		DataStream<WordCount> countWords = splitWords
 			.keyBy(WordCount::getWord).sum("count")
-			.setParallelism(reduceParallelism)
-			.name("word-count").disableChaining();
+			.name("word-count");
 
-		countWords.addSink(fileSink)
-			.setParallelism(sinkParallelism)
-			.name("count-sink").disableChaining();
+		DataStream<WordCount> windowedCountWords =
+			splitWords.keyBy(WordCount::getWord).window(TumblingProcessingTimeWindows.of(Time.seconds(5))).sum("count").name("windowed-count");
+
+		countWords.coGroup(windowedCountWords).where(WordCount::getWord).equalTo(WordCount::getWord).window(TumblingProcessingTimeWindows.of(Time.seconds(10))).apply(
+			new CoGroupFunction<WordCount, WordCount, WordCountResult>() {
+				@Override
+				public void coGroup(Iterable<WordCount> first, Iterable<WordCount> second,
+									Collector<WordCountResult> out) throws Exception {
+					WordCount noWinHead = first.iterator().next();
+					int windowCount = 0;
+					long winWordCount = 0;
+					for (WordCount winWord : second) {
+						windowCount++;
+						winWordCount += winWord.getCount();
+					}
+					out.collect(new WordCountResult(noWinHead.getWord(), noWinHead.getCount(), windowCount, winWordCount));
+				}
+			}
+		).addSink(new SinkFunction<WordCountResult>() {
+				@Override
+				public void invoke(WordCountResult value, Context context) throws Exception {
+					//do nothing
+				}
+			})
+			.name("count-sink");
 
 		// env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
 
-		env.execute("Word Count");
+		env.execute("Advanced Word Count");
 	}
 
 }

@@ -4,7 +4,7 @@
   <groupId>org.apache.flink</groupId>
   <artifactId>wordcount-driver</artifactId>
   <name>Wordcount Driver Program Java</name>
-  <version>0.4</version>
+  <version>0.5</version>
   <url>https://flink.apache.org</url>
   <build>
     <pluginManagement>
@@ -88,7 +88,7 @@
               </filters>
               <transformers>
                 <transformer>
-                  <mainClass>org.astro.driver.WordCountJob</mainClass>
+                  <mainClass>org.astro.driver.AdvancedWordCountJob</mainClass>
                 </transformer>
               </transformers>
             </configuration>
@@ -111,7 +111,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java_2.11</artifactId>
+      <artifactId>flink-streaming-java_2.12</artifactId>
       <version>1.14.2</version>
       <scope>provided</scope>
       <exclusions>
@@ -128,7 +128,7 @@
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>flink-scala_2.11</artifactId>
+          <artifactId>flink-scala_2.12</artifactId>
           <groupId>org.apache.flink</groupId>
         </exclusion>
         <exclusion>
@@ -147,7 +147,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-clients_2.11</artifactId>
+      <artifactId>flink-clients_2.12</artifactId>
       <version>1.14.2</version>
       <scope>provided</scope>
       <exclusions>
@@ -193,13 +193,13 @@
     </dependency>
   </dependencies>
   <properties>
-    <scala.binary.version>2.11</scala.binary.version>
-    <maven.compiler.target>${java.version}</maven.compiler.target>
     <java.version>1.8</java.version>
-    <maven.compiler.source>${java.version}</maven.compiler.source>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <scala.binary.version>2.12</scala.binary.version>
     <log4j.version>2.17.0</log4j.version>
     <flink.version>1.14.2</flink.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
   </properties>
 </project>
 
