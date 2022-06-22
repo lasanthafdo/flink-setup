@@ -19,98 +19,90 @@ def print_hi(name):
     print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
 
 
+def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset, policy_name):
+    print("Reading file : " + lrb_num_out_file)
+    lrb_df = pd.read_csv(lrb_num_out_file, usecols=column_list)
+    lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
+        ['name'], axis=1).groupby(['time'])[['rate', 'count']].sum().reset_index()
+    lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
+        1_000_000_000).subtract(offset)
+    lrb_src_df = lrb_src_df.loc[
+        (lrb_src_df['rel_time'] > lower_threshold) & (
+                lrb_src_df['rel_time'] < upper_threshold)]
+    lrb_avg = np.mean(lrb_src_df['rate'])
+    print("Printing values for LRB-" + policy_name)
+    print(lrb_src_df)
+    return lrb_src_df, lrb_avg
+
+
+def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy):
+    return data_directory + "/" + exp_id + \
+           "/" + metric_name + "_" + sched_policy + "_" + file_date + ".csv"
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    exp_date_id = "jun-20"
-    file_date_default = "2022_06_20"
-    file_date_adaptive = "2022_06_20"
+    exp_date_id = "jun-21-local-2"
+    file_date_default = "2022_06_22"
+    file_date_adaptive = "2022_06_22"
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
     lrb_default_num_out_file = data_dir + "/" + exp_date_id + \
                                "/" + metric_name + "_lrb_default_" + file_date_default + ".csv"
     lrb_adaptive_num_out_file = data_dir + "/" + exp_date_id + \
                                 "/" + metric_name + "_lrb_adaptive_" + file_date_adaptive + ".csv"
     lrb_replicating_num_out_file = data_dir + "/" + exp_date_id + \
-                                "/" + metric_name + "_lrb_replicating_" + file_date_adaptive + ".csv"
+                                   "/" + metric_name + "_lrb_replicating_" + file_date_adaptive + ".csv"
 
     upper_time_threshold = 540
-    lower_time_threshold = 60
-    plot_tp = True
+    lower_time_threshold = 0
+    plot_tp = False
+    plot_cpu = False
+    plot_mem = False
+    plot_busy = False
+    plot_idle = False
+    plot_backpressure = False
+    has_replicating_only_metrics = False
 
     if plot_tp:
-        print("Reading file : " + lrb_default_num_out_file)
         col_list = ["name", "time", "operator_name", "task_name", "subtask_index", "count", "rate"]
         # col_list = ["name", "time", "operator_name", "subtask_index", "rate"]
-        lrb_default_df = pd.read_csv(lrb_default_num_out_file, usecols=col_list)
-        print(lrb_default_df.columns)
-        print(lrb_default_df)
-        print(lrb_default_df["name"].unique())
-        print(lrb_default_df['operator_name'].unique())
+        lrb_default_src_df, lrb_default_avg = get_formatted_tput(lrb_default_num_out_file, col_list,
+                                                                 lower_time_threshold, upper_time_threshold, 0,
+                                                                 "Default")
 
-        lrb_default_src_df = lrb_default_df[lrb_default_df['operator_name'].str.contains('Source:')].drop(
-            ['name'], axis=1).groupby(['time'])[['rate', 'count']].sum().reset_index()
-        lrb_default_src_df['rel_time'] = lrb_default_src_df['time'].subtract(lrb_default_src_df['time'].min()).div(
-            1_000_000_000)
-        lrb_default_src_df = lrb_default_src_df.loc[
-            (lrb_default_src_df['rel_time'] > lower_time_threshold) & (lrb_default_src_df['rel_time'] < upper_time_threshold)]
-        lrb_default_avg = np.mean(lrb_default_src_df['rate'])
+        if has_replicating_only_metrics:
+            replicating_offset = 100
+            lrb_replicating_src_df, lrb_replicating_avg = get_formatted_tput(lrb_replicating_num_out_file, col_list,
+                                                                             lower_time_threshold, upper_time_threshold,
+                                                                             replicating_offset, "Replicating")
+        else:
+            lrb_replicating_src_df = None
+            lrb_replicating_avg = None
 
-        print("Printing values for LRB-Default")
-        print(lrb_default_src_df)
-
-        print("Reading file : " + lrb_replicating_num_out_file)
-        lrb_replicating_df = pd.read_csv(lrb_replicating_num_out_file, usecols=col_list)
-        print(lrb_replicating_df.columns)
-        print(lrb_replicating_df)
-        print(lrb_replicating_df["name"].unique())
-        print(lrb_replicating_df['operator_name'].unique())
-
-        replicating_offset = 105
-        lrb_replicating_src_df = \
-            lrb_replicating_df[lrb_replicating_df['operator_name'].str.contains('Source:')].drop(['name'], axis=1).groupby(
-                ['time'])[['rate', 'count']].sum().reset_index()
-        lrb_replicating_src_df['rel_time'] = lrb_replicating_src_df['time'].subtract(lrb_replicating_src_df['time'].min()).div(
-            1_000_000_000).subtract(replicating_offset)
-        lrb_replicating_src_df = lrb_replicating_src_df.loc[
-            (lrb_replicating_src_df['rel_time'] > lower_time_threshold) & (lrb_replicating_src_df['rel_time'] < upper_time_threshold)]
-        lrb_replicating_avg = np.mean(lrb_replicating_src_df['rate'])
-
-        print("Printing values for LRB-Adaptive")
-        print(lrb_replicating_src_df)
-
-        print("Reading file : " + lrb_adaptive_num_out_file)
-        lrb_adaptive_df = pd.read_csv(lrb_adaptive_num_out_file, usecols=col_list)
-        print(lrb_adaptive_df.columns)
-        print(lrb_adaptive_df)
-        print(lrb_adaptive_df["name"].unique())
-        print(lrb_adaptive_df['operator_name'].unique())
-
-        adaptive_offset = 100
-        lrb_adaptive_src_df = \
-            lrb_adaptive_df[lrb_adaptive_df['operator_name'].str.contains('Source:')].drop(['name'], axis=1).groupby(
-                ['time'])[['rate', 'count']].sum().reset_index()
-        lrb_adaptive_src_df['rel_time'] = lrb_adaptive_src_df['time'].subtract(lrb_adaptive_src_df['time'].min()).div(
-            1_000_000_000).subtract(adaptive_offset)
-        lrb_adaptive_src_df = lrb_adaptive_src_df.loc[
-            (lrb_adaptive_src_df['rel_time'] > lower_time_threshold) & (lrb_adaptive_src_df['rel_time'] < upper_time_threshold)]
-        lrb_adaptive_avg = np.mean(lrb_adaptive_src_df['rate'])
-
-        print("Printing values for LRB-Adaptive")
-        print(lrb_adaptive_src_df)
+        adaptive_offset = 0
+        lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_num_out_file, col_list,
+                                                                   lower_time_threshold, upper_time_threshold,
+                                                                   adaptive_offset, "Adaptive")
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
         ax.plot(lrb_default_src_df["rel_time"], lrb_default_src_df["rate"], label="LRB-Default")
-        ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["rate"], label="LRB-Replicating")
+        if has_replicating_only_metrics:
+            ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["rate"], label="LRB-Replicating")
         ax.plot(lrb_adaptive_src_df["rel_time"], lrb_adaptive_src_df["rate"], label="LRB-Adaptive")
-        plt.axhline(y=lrb_default_avg, ls='--', color='c', label="LRB-Default-Avg")
-        plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
-        plt.axhline(y=lrb_adaptive_avg, ls='--', color='r', label="LRB-Adaptive-Avg")
-        plt.text(100, lrb_default_avg - 6000, 'Default Avg. TP = ' + f'{lrb_default_avg:,.2f}')
-        plt.text(45, lrb_replicating_avg + 4000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
-        plt.text(360, lrb_adaptive_avg + 4000, 'Adaptive Avg. TP = ' + f'{lrb_adaptive_avg:,.2f}')
 
-        #ax.set_ylim(bottom=0)
+        plt.axhline(y=lrb_default_avg, ls='--', color='c', label="LRB-Default-Avg")
+        plt.text(100, lrb_default_avg + 5000, 'Default Avg. TP = ' + f'{lrb_default_avg:,.2f}')
+
+        if has_replicating_only_metrics:
+            plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
+            plt.text(45, lrb_replicating_avg + 5000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
+
+        plt.axhline(y=lrb_adaptive_avg, ls='--', color='r', label="LRB-Adaptive-Avg")
+        plt.text(160, lrb_adaptive_avg + 5000, 'Adaptive Avg. TP = ' + f'{lrb_adaptive_avg:,.2f}')
+
+        # ax.set_ylim(bottom=0)
         ax.set(xlabel="Time (sec)", ylabel="Throughput (event/sec)", title="Throughput")
         ax.tick_params(axis="x", rotation=0)
         ax.legend()
@@ -120,7 +112,8 @@ if __name__ == '__main__':
         count_fig, count_ax = plt.subplots(figsize=(12, 6))
 
         count_ax.plot(lrb_default_src_df["rel_time"], lrb_default_src_df["count"], label="LRB-Default")
-        count_ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["count"], label="LRB-Replicating")
+        if has_replicating_only_metrics:
+            count_ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["count"], label="LRB-Replicating")
         count_ax.plot(lrb_adaptive_src_df["rel_time"], lrb_adaptive_src_df["count"], label="LRB-Adaptive")
         # plt.axhline(y=lrb_default_avg, ls='--', color='c', label="LRB-Default-Avg")
         # plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
@@ -129,10 +122,238 @@ if __name__ == '__main__':
         # plt.text(20, lrb_replicating_avg + 5000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
         # plt.text(300, lrb_adaptive_avg + 5000, 'Adaptive Avg. TP = ' + f'{lrb_adaptive_avg:,.2f}')
 
-        #count_ax.set_ylim(bottom=0)
+        # count_ax.set_ylim(bottom=0)
         count_ax.set(xlabel="Time (sec)", ylabel="Total events", title="Event count")
         count_ax.tick_params(axis="x", rotation=0)
         count_ax.legend()
         plt.savefig("count_" + exp_date_id + ".png")
         plt.show()
 
+    if plot_cpu:
+        lrb_default_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
+                                                  file_date_default,
+                                                  "lrb_default")
+        lrb_adaptive_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
+                                                   file_date_default,
+                                                   "lrb_adaptive")
+        cpu_usage_col_list = ["name", "time", "value"]
+        cpu_usage_df = pd.read_csv(lrb_default_cpu_usage_file, usecols=cpu_usage_col_list)
+        cpu_usage_df['rel_time'] = cpu_usage_df['time'].subtract(cpu_usage_df['time'].min()).div(
+            1_000_000_000)
+        print(cpu_usage_df)
+
+        adapt_cpu_usage_df = pd.read_csv(lrb_adaptive_cpu_usage_file, usecols=cpu_usage_col_list)
+        # last_before_start = adapt_cpu_usage_df.loc[adapt_cpu_usage_df['value'] < 1].iloc[-1]['time']
+        # adapt_cpu_usage_df = adapt_cpu_usage_df.loc[adapt_cpu_usage_df['time'] > last_before_start]
+        adapt_cpu_usage_df['rel_time'] = adapt_cpu_usage_df['time'].subtract(adapt_cpu_usage_df['time'].min()).div(
+            1_000_000_000)
+        print(adapt_cpu_usage_df)
+
+        cpu_fig, cpu_ax = plt.subplots(figsize=(12, 8))
+
+        cpu_ax.plot(cpu_usage_df["rel_time"], cpu_usage_df["value"], label="LRB-Default")
+        cpu_ax.plot(adapt_cpu_usage_df["rel_time"], adapt_cpu_usage_df["value"], label="LRB-Adaptive")
+
+        # cpu_ax.set_ylim(bottom=0)
+        cpu_ax.set(xlabel="Time (sec)", ylabel="CPU Usage (%)", title="CPU Usage")
+        cpu_ax.tick_params(axis="x", rotation=0)
+        cpu_ax.legend()
+        plt.savefig("cpu_" + exp_date_id + ".png")
+        plt.show()
+
+    if plot_mem:
+        lrb_default_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
+                                                  file_date_default,
+                                                  "lrb_default")
+        lrb_adaptive_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
+                                                   file_date_default,
+                                                   "lrb_adaptive")
+        mem_usage_col_list = ["name", "time", "value"]
+        mem_usage_df = pd.read_csv(lrb_default_mem_usage_file, usecols=mem_usage_col_list)
+        mem_usage_df['rel_time'] = mem_usage_df['time'].subtract(mem_usage_df['time'].min()).div(
+            1_000_000_000)
+        mem_usage_df['value'] = mem_usage_df['value'].div(1048576)
+        print(mem_usage_df)
+
+        adapt_mem_usage_df = pd.read_csv(lrb_adaptive_mem_usage_file, usecols=mem_usage_col_list)
+        # last_before_start = adapt_mem_usage_df.loc[adapt_mem_usage_df['value'] < 1].iloc[-1]['time']
+        # adapt_mem_usage_df = adapt_mem_usage_df.loc[adapt_mem_usage_df['time'] > last_before_start]
+        adapt_mem_usage_df['rel_time'] = adapt_mem_usage_df['time'].subtract(adapt_mem_usage_df['time'].min()).div(
+            1_000_000_000)
+        adapt_mem_usage_df['value'] = adapt_mem_usage_df['value'].div(1048576)
+        print(adapt_mem_usage_df)
+
+        mem_fig, mem_ax = plt.subplots(figsize=(12, 8))
+
+        mem_ax.plot(mem_usage_df["rel_time"], mem_usage_df["value"], label="LRB-Default")
+        mem_ax.plot(adapt_mem_usage_df["rel_time"], adapt_mem_usage_df["value"], label="LRB-Adaptive")
+
+        # mem_ax.set_ylim(bottom=0)
+        mem_ax.set(xlabel="Time (sec)", ylabel="Memory Usage (MB)", title="Heap Memory")
+        mem_ax.tick_params(axis="x", rotation=0)
+        mem_ax.legend()
+        plt.savefig("mem_" + exp_date_id + ".png")
+        plt.show()
+
+    if plot_busy:
+        lrb_default_busy_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_busyTimeMsPerSecond",
+                                                  file_date_default,
+                                                  "lrb_default")
+        lrb_adaptive_busy_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_busyTimeMsPerSecond",
+                                                   file_date_default,
+                                                   "lrb_adaptive")
+        busy_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
+        busy_time_df = pd.read_csv(lrb_default_busy_time_file, usecols=busy_time_col_list)
+        busy_time_grouped_df = busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
+        # print(busy_time_grouped_df['task_name'].unique())
+        busy_time_grouped_df['rel_time'] = busy_time_grouped_df['time'].subtract(
+            busy_time_grouped_df['time'].min()).div(
+            1_000_000_000)
+        print(busy_time_grouped_df)
+
+        adapt_busy_time_df = pd.read_csv(lrb_adaptive_busy_time_file, usecols=busy_time_col_list)
+        # last_before_start = adapt_busy_time_df.loc[adapt_busy_time_df['value'] < 1].iloc[-1]['time']
+        # adapt_busy_time_df = adapt_busy_time_df.loc[adapt_busy_time_df['time'] > last_before_start]
+        adapt_busy_time_grouped_df = adapt_busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
+        adapt_busy_time_grouped_df['rel_time'] = adapt_busy_time_grouped_df['time'].subtract(
+            adapt_busy_time_grouped_df['time'].min()).div(
+            1_000_000_000)
+        print(adapt_busy_time_grouped_df)
+
+        ax_busy_time_default = busy_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("Busy Time in Milliseconds Per Second")
+        plt.savefig("busy_time_default_" + exp_date_id + ".png")
+        plt.show()
+
+        ax_busy_time_adapt = adapt_busy_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("Busy Time in Milliseconds Per Second")
+        plt.savefig("busy_time_adaptive_" + exp_date_id + ".png")
+        plt.show()
+
+    if plot_idle:
+        lrb_default_idle_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_idleTimeMsPerSecond",
+                                                  file_date_default,
+                                                  "lrb_default")
+        lrb_adaptive_idle_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_idleTimeMsPerSecond",
+                                                   file_date_default,
+                                                   "lrb_adaptive")
+        idle_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
+        idle_time_df = pd.read_csv(lrb_default_idle_time_file, usecols=idle_time_col_list)
+        idle_time_grouped_df = idle_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
+        # print(idle_time_grouped_df['task_name'].unique())
+        idle_time_grouped_df['rel_time'] = idle_time_grouped_df['time'].subtract(
+            idle_time_grouped_df['time'].min()).div(
+            1_000_000_000)
+        print(idle_time_grouped_df)
+
+        adapt_idle_time_df = pd.read_csv(lrb_adaptive_idle_time_file, usecols=idle_time_col_list)
+        # last_before_start = adapt_idle_time_df.loc[adapt_idle_time_df['value'] < 1].iloc[-1]['time']
+        # adapt_idle_time_df = adapt_idle_time_df.loc[adapt_idle_time_df['time'] > last_before_start]
+        adapt_idle_time_grouped_df = adapt_idle_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
+        adapt_idle_time_grouped_df['rel_time'] = adapt_idle_time_grouped_df['time'].subtract(
+            adapt_idle_time_grouped_df['time'].min()).div(
+            1_000_000_000)
+        print(adapt_idle_time_grouped_df)
+
+        ax_idle_time_default = idle_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("Idle Time in Milliseconds Per Second")
+        plt.savefig("idle_time_default_" + exp_date_id + ".png")
+        plt.show()
+
+        ax_idle_time_adapt = adapt_idle_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("Idle Time in Milliseconds Per Second")
+        plt.savefig("idle_time_adaptive_" + exp_date_id + ".png")
+        plt.show()
+
+    if plot_backpressure:
+        lrb_default_backpressured_time_file = get_filename(data_dir, exp_date_id,
+                                                           "taskmanager_job_task_backPressuredTimeMsPerSecond",
+                                                           file_date_default,
+                                                           "lrb_default")
+        lrb_adaptive_backpressured_time_file = get_filename(data_dir, exp_date_id,
+                                                            "taskmanager_job_task_backPressuredTimeMsPerSecond",
+                                                            file_date_default,
+                                                            "lrb_adaptive")
+        backpressured_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
+        backpressured_time_df = pd.read_csv(lrb_default_backpressured_time_file, usecols=backpressured_time_col_list)
+        backpressured_time_grouped_df = backpressured_time_df.groupby(['time', 'task_name'])[
+            'value'].mean().reset_index()
+        # print(backpressured_time_grouped_df['task_name'].unique())
+        backpressured_time_grouped_df['rel_time'] = backpressured_time_grouped_df['time'].subtract(
+            backpressured_time_grouped_df['time'].min()).div(
+            1_000_000_000)
+        print(backpressured_time_grouped_df)
+
+        adapt_backpressured_time_df = pd.read_csv(lrb_adaptive_backpressured_time_file,
+                                                  usecols=backpressured_time_col_list)
+        # last_before_start = adapt_backpressured_time_df.loc[adapt_backpressured_time_df['value'] < 1].iloc[-1]['time']
+        # adapt_backpressured_time_df = adapt_backpressured_time_df.loc[adapt_backpressured_time_df['time'] > last_before_start]
+        adapt_backpressured_time_grouped_df = adapt_backpressured_time_df.groupby(['time', 'task_name'])[
+            'value'].mean().reset_index()
+        adapt_backpressured_time_grouped_df['rel_time'] = adapt_backpressured_time_grouped_df['time'].subtract(
+            adapt_backpressured_time_grouped_df['time'].min()).div(
+            1_000_000_000)
+        print(adapt_backpressured_time_grouped_df)
+
+        ax_backpressured_time_default = backpressured_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("BP Time in Milliseconds Per Second")
+        plt.savefig("backpressured_time_default_" + exp_date_id + ".png")
+        plt.show()
+
+        ax_backpressured_time_adapt = adapt_backpressured_time_grouped_df.groupby('task_name')['value'].plot(
+            legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("BP Time in Milliseconds Per Second")
+        plt.savefig("backpressured_time_adaptive_" + exp_date_id + ".png")
+        plt.show()
+
+    lrb_default_iq_len_file = get_filename(data_dir, exp_date_id,
+                                           "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
+                                           file_date_default,
+                                           "lrb_default")
+    lrb_adaptive_iq_len_file = get_filename(data_dir, exp_date_id,
+                                            "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
+                                            file_date_default,
+                                            "lrb_adaptive")
+    iq_len_col_list = ["name", "task_name", "subtask_index", "time", "value"]
+    iq_len_df = pd.read_csv(lrb_default_iq_len_file, usecols=iq_len_col_list)
+    iq_len_grouped_df = iq_len_df.groupby(['time', 'task_name'])['value'].sum().reset_index()
+    # print(iq_len_grouped_df['task_name'].unique())
+    iq_len_grouped_df['rel_time'] = iq_len_grouped_df['time'].subtract(iq_len_grouped_df['time'].min()).div(
+        1_000_000_000)
+    print(iq_len_grouped_df)
+
+    adapt_iq_len_df = pd.read_csv(lrb_adaptive_iq_len_file,
+                                  usecols=iq_len_col_list)
+    # last_before_start = adapt_iq_len_df.loc[adapt_iq_len_df['value'] < 1].iloc[-1]['time']
+    # adapt_iq_len_df = adapt_iq_len_df.loc[adapt_iq_len_df['time'] > last_before_start]
+    adapt_iq_len_grouped_df = adapt_iq_len_df.groupby(['time', 'task_name'])['value'].sum().reset_index()
+    adapt_iq_len_grouped_df['rel_time'] = adapt_iq_len_grouped_df['time'].subtract(
+        adapt_iq_len_grouped_df['time'].min()).div(1_000_000_000)
+    print(adapt_iq_len_grouped_df)
+
+    ax_iq_len_default = iq_len_grouped_df.groupby('task_name')['value'].plot(legend=True)
+    plt.xlabel("Time (sec)")
+    plt.ylabel("Num. buffers")
+    plt.title("Input Queue Length")
+    plt.savefig("iq_len_default_" + exp_date_id + ".png")
+    plt.show()
+
+    ax_iq_len_adapt = adapt_iq_len_grouped_df.groupby('task_name')['value'].plot(
+        legend=True)
+    plt.xlabel("Time (sec)")
+    plt.ylabel("Num. buffers")
+    plt.title("Input Queue Length")
+    plt.savefig("iq_len_adaptive_" + exp_date_id + ".png")
+    plt.show()
