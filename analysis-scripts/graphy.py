@@ -51,18 +51,17 @@ if __name__ == '__main__':
 
     upper_time_threshold = 500
     lower_time_threshold = 100
-    plot_tp = True
-    plot_cpu = True
-    plot_mem = True
+    plot_tp = False
+    plot_cpu = False
+    plot_mem = False
     plot_busy = True
-    plot_idle = True
-    plot_backpressure = True
-    plot_iq_len = True
+    plot_idle = False
+    plot_backpressure = False
+    plot_iq_len = False
     has_replicating_only_metrics = True
 
     if plot_tp:
         col_list = ["name", "time", "operator_name", "task_name", "subtask_index", "count", "rate"]
-        # col_list = ["name", "time", "operator_name", "subtask_index", "rate"]
         lrb_default_src_df, lrb_default_avg = get_formatted_tput(lrb_default_num_out_file, col_list,
                                                                  lower_time_threshold, upper_time_threshold, 0,
                                                                  "Default")
@@ -147,8 +146,6 @@ if __name__ == '__main__':
 
         if has_replicating_only_metrics:
             repl_cpu_usage_df = pd.read_csv(lrb_replicating_cpu_usage_file, usecols=cpu_usage_col_list)
-            # last_before_start = adapt_cpu_usage_df.loc[adapt_cpu_usage_df['value'] < 1].iloc[-1]['time']
-            # adapt_cpu_usage_df = adapt_cpu_usage_df.loc[adapt_cpu_usage_df['time'] > last_before_start]
             repl_cpu_usage_df['rel_time'] = repl_cpu_usage_df['time'].subtract(repl_cpu_usage_df['time'].min()).div(
                 1_000_000_000)
             print(repl_cpu_usage_df)
@@ -181,9 +178,10 @@ if __name__ == '__main__':
                                                   file_date_default,
                                                   "lrb_default")
         if has_replicating_only_metrics:
-            lrb_replicating_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
-                                                       file_date_default,
-                                                       "lrb_replicating")
+            lrb_replicating_mem_usage_file = get_filename(data_dir, exp_date_id,
+                                                          "taskmanager_Status_JVM_Memory_Heap_Used",
+                                                          file_date_default,
+                                                          "lrb_replicating")
         else:
             lrb_replicating_mem_usage_file = None
 
@@ -232,9 +230,9 @@ if __name__ == '__main__':
                                                   "lrb_default")
         if has_replicating_only_metrics:
             lrb_replicating_busy_time_file = get_filename(data_dir, exp_date_id,
-                                                       "taskmanager_job_task_busyTimeMsPerSecond",
-                                                       file_date_default,
-                                                       "lrb_replicating")
+                                                          "taskmanager_job_task_busyTimeMsPerSecond",
+                                                          file_date_default,
+                                                          "lrb_replicating")
         else:
             lrb_replicating_busy_time_file = None
 
@@ -244,31 +242,23 @@ if __name__ == '__main__':
         busy_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
         busy_time_df = pd.read_csv(lrb_default_busy_time_file, usecols=busy_time_col_list)
         busy_time_grouped_df = busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
-        # print(busy_time_grouped_df['task_name'].unique())
         busy_time_grouped_df['rel_time'] = busy_time_grouped_df['time'].subtract(
-            busy_time_grouped_df['time'].min()).div(
-            1_000_000_000)
+            busy_time_grouped_df['time'].min()).div(1_000_000_000)
         print(busy_time_grouped_df)
 
         if has_replicating_only_metrics:
             repl_busy_time_df = pd.read_csv(lrb_replicating_busy_time_file, usecols=busy_time_col_list)
-            # last_before_start = repl_busy_time_df.loc[repl_busy_time_df['value'] < 1].iloc[-1]['time']
-            # repl_busy_time_df = repl_busy_time_df.loc[repl_busy_time_df['time'] > last_before_start]
             repl_busy_time_grouped_df = repl_busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
             repl_busy_time_grouped_df['rel_time'] = repl_busy_time_grouped_df['time'].subtract(
-                repl_busy_time_grouped_df['time'].min()).div(
-                1_000_000_000)
+                repl_busy_time_grouped_df['time'].min()).div(1_000_000_000)
             print(repl_busy_time_grouped_df)
         else:
             repl_busy_time_grouped_df = None
 
         adapt_busy_time_df = pd.read_csv(lrb_adaptive_busy_time_file, usecols=busy_time_col_list)
-        # last_before_start = adapt_busy_time_df.loc[adapt_busy_time_df['value'] < 1].iloc[-1]['time']
-        # adapt_busy_time_df = adapt_busy_time_df.loc[adapt_busy_time_df['time'] > last_before_start]
         adapt_busy_time_grouped_df = adapt_busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
         adapt_busy_time_grouped_df['rel_time'] = adapt_busy_time_grouped_df['time'].subtract(
-            adapt_busy_time_grouped_df['time'].min()).div(
-            1_000_000_000)
+            adapt_busy_time_grouped_df['time'].min()).div(1_000_000_000)
         print(adapt_busy_time_grouped_df)
 
         ax_busy_time_default = busy_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
@@ -293,25 +283,105 @@ if __name__ == '__main__':
         plt.savefig(results_dir + "/busy_time_adaptive_" + exp_date_id + ".png")
         plt.show()
 
+        # Grouped analytics
+
+        busy_time_grouped_df.loc[
+            busy_time_grouped_df['task_name'] == 'des_1 -> fil_1 -> tsw_1 -> prj_1', 'task'] = 'Deserialization+'
+        busy_time_grouped_df.loc[
+            (busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
+                        busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
+                        busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
+        busy_time_grouped_df.loc[
+            (busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
+                        busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
+        default_busy_time_final = busy_time_grouped_df.groupby(['rel_time', 'task'])['value'].mean().reset_index()
+        print(default_busy_time_final)
+
+        default_busy_time_final.set_index('rel_time', inplace=True)
+        ax_default_busy_time_final = default_busy_time_final.groupby('task')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("Busy Time (ms/sec) - Default")
+        plt.savefig(results_dir + "/busy_time_grouped_default_" + exp_date_id + ".png")
+        plt.show()
+
+        if has_replicating_only_metrics:
+            repl_busy_time_grouped_df.loc[
+                repl_busy_time_grouped_df['task_name'] == 'des_1 -> fil_1 -> tsw_1 -> prj_1', 'task'] = 'Deserialization+'
+            repl_busy_time_grouped_df.loc[
+                (repl_busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
+                            repl_busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
+                            repl_busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
+            repl_busy_time_grouped_df.loc[
+                (repl_busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
+                            repl_busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
+            repl_busy_time_final = repl_busy_time_grouped_df.groupby(['rel_time', 'task'])['value'].mean().reset_index()
+            print(repl_busy_time_final)
+
+            repl_busy_time_final.set_index('rel_time', inplace=True)
+            ax_repl_busy_time_final = repl_busy_time_final.groupby('task')['value'].plot(legend=True)
+            plt.xlabel("Time (sec)")
+            plt.ylabel("ms/sec")
+            plt.title("Busy Time (ms/sec) - Replicating")
+            plt.savefig(results_dir + "/busy_time_grouped_replicating_" + exp_date_id + ".png")
+            plt.show()
+
+        adapt_busy_time_grouped_df.loc[
+            adapt_busy_time_grouped_df['task_name'] == 'des_1 -> fil_1 -> tsw_1 -> prj_1', 'task'] = 'Deserialization+'
+        adapt_busy_time_grouped_df.loc[
+            (adapt_busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
+                        adapt_busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
+                        adapt_busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
+        adapt_busy_time_grouped_df.loc[
+            (adapt_busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
+                        adapt_busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
+        adapt_busy_time_final = adapt_busy_time_grouped_df.groupby(['rel_time', 'task'])['value'].mean().reset_index()
+        print(adapt_busy_time_final)
+
+        adapt_busy_time_final.set_index('rel_time', inplace=True)
+        ax_adapt_busy_time_final = adapt_busy_time_final.groupby('task')['value'].plot(legend=True)
+        plt.xlabel("Time (sec)")
+        plt.ylabel("ms/sec")
+        plt.title("Busy Time (ms/sec) - Adaptive")
+        plt.savefig(results_dir + "/busy_time_grouped_adaptive_" + exp_date_id + ".png")
+        plt.show()
+
     if plot_idle:
         lrb_default_idle_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_idleTimeMsPerSecond",
                                                   file_date_default,
                                                   "lrb_default")
+
+        if has_replicating_only_metrics:
+            lrb_replicating_idle_time_file = get_filename(data_dir, exp_date_id,
+                                                          "taskmanager_job_task_idleTimeMsPerSecond",
+                                                          file_date_default,
+                                                          "lrb_replicating")
+        else:
+            lrb_replicating_idle_time_file = None
+
         lrb_adaptive_idle_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_idleTimeMsPerSecond",
                                                    file_date_default,
                                                    "lrb_adaptive")
+
         idle_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
         idle_time_df = pd.read_csv(lrb_default_idle_time_file, usecols=idle_time_col_list)
         idle_time_grouped_df = idle_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
-        # print(idle_time_grouped_df['task_name'].unique())
         idle_time_grouped_df['rel_time'] = idle_time_grouped_df['time'].subtract(
             idle_time_grouped_df['time'].min()).div(
             1_000_000_000)
         print(idle_time_grouped_df)
 
+        if has_replicating_only_metrics:
+            repl_idle_time_df = pd.read_csv(lrb_replicating_idle_time_file, usecols=idle_time_col_list)
+            repl_idle_time_grouped_df = repl_idle_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
+            repl_idle_time_grouped_df['rel_time'] = repl_idle_time_grouped_df['time'].subtract(
+                repl_idle_time_grouped_df['time'].min()).div(
+                1_000_000_000)
+            print(repl_idle_time_grouped_df)
+        else:
+            repl_idle_time_grouped_df = None
+
         adapt_idle_time_df = pd.read_csv(lrb_adaptive_idle_time_file, usecols=idle_time_col_list)
-        # last_before_start = adapt_idle_time_df.loc[adapt_idle_time_df['value'] < 1].iloc[-1]['time']
-        # adapt_idle_time_df = adapt_idle_time_df.loc[adapt_idle_time_df['time'] > last_before_start]
         adapt_idle_time_grouped_df = adapt_idle_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
         adapt_idle_time_grouped_df['rel_time'] = adapt_idle_time_grouped_df['time'].subtract(
             adapt_idle_time_grouped_df['time'].min()).div(
@@ -325,6 +395,14 @@ if __name__ == '__main__':
         plt.savefig(results_dir + "/idle_time_default_" + exp_date_id + ".png")
         plt.show()
 
+        if has_replicating_only_metrics:
+            ax_idle_time_repl = repl_idle_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
+            plt.xlabel("Time (sec)")
+            plt.ylabel("ms/sec")
+            plt.title("Idle Time (ms/sec) - Replicating")
+            plt.savefig(results_dir + "/idle_time_replicating_" + exp_date_id + ".png")
+            plt.show()
+
         ax_idle_time_adapt = adapt_idle_time_grouped_df.groupby('task_name')['value'].plot(legend=True)
         plt.xlabel("Time (sec)")
         plt.ylabel("ms/sec")
@@ -337,24 +415,42 @@ if __name__ == '__main__':
                                                            "taskmanager_job_task_backPressuredTimeMsPerSecond",
                                                            file_date_default,
                                                            "lrb_default")
+        if has_replicating_only_metrics:
+            lrb_replicating_backpressured_time_file = get_filename(data_dir, exp_date_id,
+                                                                   "taskmanager_job_task_backPressuredTimeMsPerSecond",
+                                                                   file_date_default,
+                                                                   "lrb_replicating")
+        else:
+            lrb_replicating_backpressured_time_file = None
+
         lrb_adaptive_backpressured_time_file = get_filename(data_dir, exp_date_id,
                                                             "taskmanager_job_task_backPressuredTimeMsPerSecond",
                                                             file_date_default,
                                                             "lrb_adaptive")
+
         backpressured_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
         backpressured_time_df = pd.read_csv(lrb_default_backpressured_time_file, usecols=backpressured_time_col_list)
         backpressured_time_grouped_df = backpressured_time_df.groupby(['time', 'task_name'])[
             'value'].mean().reset_index()
-        # print(backpressured_time_grouped_df['task_name'].unique())
         backpressured_time_grouped_df['rel_time'] = backpressured_time_grouped_df['time'].subtract(
             backpressured_time_grouped_df['time'].min()).div(
             1_000_000_000)
         print(backpressured_time_grouped_df)
 
+        if has_replicating_only_metrics:
+            repl_backpressured_time_df = pd.read_csv(lrb_replicating_backpressured_time_file,
+                                                     usecols=backpressured_time_col_list)
+            repl_backpressured_time_grouped_df = repl_backpressured_time_df.groupby(['time', 'task_name'])[
+                'value'].mean().reset_index()
+            repl_backpressured_time_grouped_df['rel_time'] = repl_backpressured_time_grouped_df['time'].subtract(
+                repl_backpressured_time_grouped_df['time'].min()).div(
+                1_000_000_000)
+            print(repl_backpressured_time_grouped_df)
+        else:
+            repl_backpressured_time_grouped_df = None
+
         adapt_backpressured_time_df = pd.read_csv(lrb_adaptive_backpressured_time_file,
                                                   usecols=backpressured_time_col_list)
-        # last_before_start = adapt_backpressured_time_df.loc[adapt_backpressured_time_df['value'] < 1].iloc[-1]['time']
-        # adapt_backpressured_time_df = adapt_backpressured_time_df.loc[adapt_backpressured_time_df['time'] > last_before_start]
         adapt_backpressured_time_grouped_df = adapt_backpressured_time_df.groupby(['time', 'task_name'])[
             'value'].mean().reset_index()
         adapt_backpressured_time_grouped_df['rel_time'] = adapt_backpressured_time_grouped_df['time'].subtract(
@@ -368,6 +464,15 @@ if __name__ == '__main__':
         plt.title("BP Time (ms/sec) - Default")
         plt.savefig(results_dir + "/backpressured_time_default_" + exp_date_id + ".png")
         plt.show()
+
+        if has_replicating_only_metrics:
+            ax_backpressured_time_repl = repl_backpressured_time_grouped_df.groupby('task_name')['value'].plot(
+                legend=True)
+            plt.xlabel("Time (sec)")
+            plt.ylabel("ms/sec")
+            plt.title("BP Time (ms/sec) - Replicating")
+            plt.savefig(results_dir + "/backpressured_time_replicating_" + exp_date_id + ".png")
+            plt.show()
 
         ax_backpressured_time_adapt = adapt_backpressured_time_grouped_df.groupby('task_name')['value'].plot(
             legend=True)
@@ -396,8 +501,6 @@ if __name__ == '__main__':
 
         adapt_iq_len_df = pd.read_csv(lrb_adaptive_iq_len_file,
                                       usecols=iq_len_col_list)
-        # last_before_start = adapt_iq_len_df.loc[adapt_iq_len_df['value'] < 1].iloc[-1]['time']
-        # adapt_iq_len_df = adapt_iq_len_df.loc[adapt_iq_len_df['time'] > last_before_start]
         adapt_iq_len_grouped_df = adapt_iq_len_df.groupby(['time', 'task_name'])['value'].sum().reset_index()
         adapt_iq_len_grouped_df['rel_time'] = adapt_iq_len_grouped_df['time'].subtract(
             adapt_iq_len_grouped_df['time'].min()).div(1_000_000_000)
