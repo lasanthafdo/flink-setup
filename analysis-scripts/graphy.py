@@ -36,9 +36,9 @@ def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    exp_date_id = "jun-28"
-    file_date_default = "2022_06_28"
-    file_date_adaptive = "2022_06_28"
+    exp_date_id = "jul-1-1"
+    file_date_default = "2022_06_30"
+    file_date_adaptive = "2022_07_01"
     results_dir = "results/" + exp_date_id
     os.makedirs(results_dir, exist_ok=True)
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
@@ -51,12 +51,12 @@ if __name__ == '__main__':
 
     upper_time_threshold = 500
     lower_time_threshold = 100
-    plot_tp = False
+    plot_tp = True
     plot_cpu = False
     plot_mem = False
     plot_busy = True
     plot_idle = False
-    plot_backpressure = False
+    plot_backpressure = True
     plot_iq_len = False
     has_replicating_only_metrics = True
 
@@ -130,13 +130,13 @@ if __name__ == '__main__':
                                                   "lrb_default")
         if has_replicating_only_metrics:
             lrb_replicating_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
-                                                          file_date_default,
+                                                          file_date_adaptive,
                                                           "lrb_replicating")
         else:
             lrb_replicating_cpu_usage_file = None
 
         lrb_adaptive_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
-                                                   file_date_default,
+                                                   file_date_adaptive,
                                                    "lrb_adaptive")
         cpu_usage_col_list = ["name", "time", "value"]
         cpu_usage_df = pd.read_csv(lrb_default_cpu_usage_file, usecols=cpu_usage_col_list)
@@ -180,13 +180,13 @@ if __name__ == '__main__':
         if has_replicating_only_metrics:
             lrb_replicating_mem_usage_file = get_filename(data_dir, exp_date_id,
                                                           "taskmanager_Status_JVM_Memory_Heap_Used",
-                                                          file_date_default,
+                                                          file_date_adaptive,
                                                           "lrb_replicating")
         else:
             lrb_replicating_mem_usage_file = None
 
         lrb_adaptive_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
-                                                   file_date_default,
+                                                   file_date_adaptive,
                                                    "lrb_adaptive")
         mem_usage_col_list = ["name", "time", "value"]
         mem_usage_df = pd.read_csv(lrb_default_mem_usage_file, usecols=mem_usage_col_list)
@@ -231,13 +231,13 @@ if __name__ == '__main__':
         if has_replicating_only_metrics:
             lrb_replicating_busy_time_file = get_filename(data_dir, exp_date_id,
                                                           "taskmanager_job_task_busyTimeMsPerSecond",
-                                                          file_date_default,
+                                                          file_date_adaptive,
                                                           "lrb_replicating")
         else:
             lrb_replicating_busy_time_file = None
 
         lrb_adaptive_busy_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_busyTimeMsPerSecond",
-                                                   file_date_default,
+                                                   file_date_adaptive,
                                                    "lrb_adaptive")
         busy_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
         busy_time_df = pd.read_csv(lrb_default_busy_time_file, usecols=busy_time_col_list)
@@ -354,13 +354,13 @@ if __name__ == '__main__':
         if has_replicating_only_metrics:
             lrb_replicating_idle_time_file = get_filename(data_dir, exp_date_id,
                                                           "taskmanager_job_task_idleTimeMsPerSecond",
-                                                          file_date_default,
+                                                          file_date_adaptive,
                                                           "lrb_replicating")
         else:
             lrb_replicating_idle_time_file = None
 
         lrb_adaptive_idle_time_file = get_filename(data_dir, exp_date_id, "taskmanager_job_task_idleTimeMsPerSecond",
-                                                   file_date_default,
+                                                   file_date_adaptive,
                                                    "lrb_adaptive")
 
         idle_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
@@ -418,14 +418,14 @@ if __name__ == '__main__':
         if has_replicating_only_metrics:
             lrb_replicating_backpressured_time_file = get_filename(data_dir, exp_date_id,
                                                                    "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                                   file_date_default,
+                                                                   file_date_adaptive,
                                                                    "lrb_replicating")
         else:
             lrb_replicating_backpressured_time_file = None
 
         lrb_adaptive_backpressured_time_file = get_filename(data_dir, exp_date_id,
                                                             "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                            file_date_default,
+                                                            file_date_adaptive,
                                                             "lrb_adaptive")
 
         backpressured_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
@@ -489,7 +489,7 @@ if __name__ == '__main__':
                                                "lrb_default")
         lrb_adaptive_iq_len_file = get_filename(data_dir, exp_date_id,
                                                 "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
-                                                file_date_default,
+                                                file_date_adaptive,
                                                 "lrb_adaptive")
         iq_len_col_list = ["name", "task_name", "subtask_index", "time", "value"]
         iq_len_df = pd.read_csv(lrb_default_iq_len_file, usecols=iq_len_col_list)
