@@ -36,9 +36,9 @@ def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    exp_date_id = "jul-1-1"
-    file_date_default = "2022_06_30"
-    file_date_adaptive = "2022_07_01"
+    exp_date_id = "jul-6-2"
+    file_date_default = "2022_07_06"
+    file_date_adaptive = "2022_07_06"
     results_dir = "results/" + exp_date_id
     os.makedirs(results_dir, exist_ok=True)
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
@@ -48,22 +48,28 @@ if __name__ == '__main__':
                                 "/" + metric_name + "_lrb_adaptive_" + file_date_adaptive + ".csv"
     lrb_replicating_num_out_file = data_dir + "/" + exp_date_id + \
                                    "/" + metric_name + "_lrb_replicating_" + file_date_adaptive + ".csv"
+    lrb_scheduling_num_out_file = data_dir + "/" + exp_date_id + \
+                                   "/" + metric_name + "_lrb_scheduling_" + file_date_adaptive + ".csv"
 
-    upper_time_threshold = 500
-    lower_time_threshold = 100
+    upper_time_threshold = 600
+    lower_time_threshold = 0
     plot_tp = True
-    plot_cpu = False
-    plot_mem = False
+    plot_cpu = True
+    plot_mem = True
     plot_busy = True
     plot_idle = False
     plot_backpressure = True
-    plot_iq_len = False
-    has_replicating_only_metrics = True
+    plot_iq_len = True
+    has_replicating_only_metrics = False
+    has_scheduling_only_metrics = True
+    has_adaptive_metrics = False
+
+    default_offset = 0
 
     if plot_tp:
         col_list = ["name", "time", "operator_name", "task_name", "subtask_index", "count", "rate"]
         lrb_default_src_df, lrb_default_avg = get_formatted_tput(lrb_default_num_out_file, col_list,
-                                                                 lower_time_threshold, upper_time_threshold, 0,
+                                                                 lower_time_threshold, upper_time_threshold, default_offset,
                                                                  "Default")
 
         if has_replicating_only_metrics:
@@ -75,27 +81,45 @@ if __name__ == '__main__':
             lrb_replicating_src_df = None
             lrb_replicating_avg = None
 
-        adaptive_offset = 0
-        lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_num_out_file, col_list,
-                                                                   lower_time_threshold, upper_time_threshold,
-                                                                   adaptive_offset, "Adaptive")
+        if has_scheduling_only_metrics:
+            scheduling_offset = 0
+            lrb_scheduling_src_df, lrb_scheduling_avg = get_formatted_tput(lrb_scheduling_num_out_file, col_list,
+                                                                             lower_time_threshold, upper_time_threshold,
+                                                                             scheduling_offset, "Replicating")
+        else:
+            lrb_scheduling_src_df = None
+            lrb_scheduling_avg = None
+
+        if has_adaptive_metrics:
+            adaptive_offset = 0
+            lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_num_out_file, col_list,
+                                                                       lower_time_threshold, upper_time_threshold,
+                                                                       adaptive_offset, "Adaptive")
+        else:
+            lrb_adaptive_src_df = None
+            lrb_adaptive_avg = None
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
         ax.plot(lrb_default_src_df["rel_time"], lrb_default_src_df["rate"], label="LRB-Default")
         if has_replicating_only_metrics:
             ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["rate"], label="LRB-Replicating")
-        ax.plot(lrb_adaptive_src_df["rel_time"], lrb_adaptive_src_df["rate"], label="LRB-Adaptive")
+        if has_adaptive_metrics:
+            ax.plot(lrb_adaptive_src_df["rel_time"], lrb_adaptive_src_df["rate"], label="LRB-Adaptive")
+        if has_scheduling_only_metrics:
+            ax.plot(lrb_scheduling_src_df["rel_time"], lrb_scheduling_src_df["rate"], label="LRB-Scheduling")
 
         plt.axhline(y=lrb_default_avg, ls='--', color='c', label="LRB-Default-Avg")
         plt.text(100, lrb_default_avg + 5000, 'Default Avg. TP = ' + f'{lrb_default_avg:,.2f}')
-
         if has_replicating_only_metrics:
             plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
             plt.text(200, lrb_replicating_avg + 5000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
-
-        plt.axhline(y=lrb_adaptive_avg, ls='--', color='r', label="LRB-Adaptive-Avg")
-        plt.text(160, lrb_adaptive_avg + 5000, 'Adaptive Avg. TP = ' + f'{lrb_adaptive_avg:,.2f}')
+        if has_adaptive_metrics:
+            plt.axhline(y=lrb_adaptive_avg, ls='--', color='r', label="LRB-Adaptive-Avg")
+            plt.text(260, lrb_adaptive_avg + 5000, 'Adaptive Avg. TP = ' + f'{lrb_adaptive_avg:,.2f}')
+        if has_scheduling_only_metrics:
+            plt.axhline(y=lrb_scheduling_avg, ls='--', color='y', label="LRB-Scheduling-Avg")
+            plt.text(360, lrb_scheduling_avg + 5000, 'Scheduling Avg. TP = ' + f'{lrb_scheduling_avg:,.2f}')
 
         # ax.set_ylim(bottom=0)
         ax.set(xlabel="Time (sec)", ylabel="Throughput (event/sec)", title="Throughput")
@@ -109,13 +133,10 @@ if __name__ == '__main__':
         count_ax.plot(lrb_default_src_df["rel_time"], lrb_default_src_df["count"], label="LRB-Default")
         if has_replicating_only_metrics:
             count_ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["count"], label="LRB-Replicating")
-        count_ax.plot(lrb_adaptive_src_df["rel_time"], lrb_adaptive_src_df["count"], label="LRB-Adaptive")
-        # plt.axhline(y=lrb_default_avg, ls='--', color='c', label="LRB-Default-Avg")
-        # plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
-        # plt.axhline(y=lrb_adaptive_avg, ls='--', color='r', label="LRB-Adaptive-Avg")
-        # plt.text(100, lrb_default_avg - 8000, 'Default Avg. TP = ' + f'{lrb_default_avg:,.2f}')
-        # plt.text(20, lrb_replicating_avg + 5000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
-        # plt.text(300, lrb_adaptive_avg + 5000, 'Adaptive Avg. TP = ' + f'{lrb_adaptive_avg:,.2f}')
+        if has_adaptive_metrics:
+            count_ax.plot(lrb_adaptive_src_df["rel_time"], lrb_adaptive_src_df["count"], label="LRB-Adaptive")
+        if has_scheduling_only_metrics:
+            count_ax.plot(lrb_scheduling_src_df["rel_time"], lrb_scheduling_src_df["count"], label="LRB-Scheduling")
 
         # count_ax.set_ylim(bottom=0)
         count_ax.set(xlabel="Time (sec)", ylabel="Total events", title="Event count")
@@ -135,13 +156,25 @@ if __name__ == '__main__':
         else:
             lrb_replicating_cpu_usage_file = None
 
-        lrb_adaptive_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
+        if has_adaptive_metrics:
+            lrb_adaptive_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
                                                    file_date_adaptive,
                                                    "lrb_adaptive")
+        else:
+            lrb_adaptive_cpu_usage_file = None
+
+        if has_scheduling_only_metrics:
+            lrb_scheduling_cpu_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_System_CPU_Usage",
+                                                          file_date_adaptive,
+                                                          "lrb_scheduling")
+        else:
+            lrb_scheduling_cpu_usage_file = None
+
         cpu_usage_col_list = ["name", "time", "value"]
         cpu_usage_df = pd.read_csv(lrb_default_cpu_usage_file, usecols=cpu_usage_col_list)
         cpu_usage_df['rel_time'] = cpu_usage_df['time'].subtract(cpu_usage_df['time'].min()).div(
-            1_000_000_000)
+            1_000_000_000).subtract(default_offset)
+        cpu_usage_df = cpu_usage_df.loc[cpu_usage_df['rel_time'] > 0]
         print(cpu_usage_df)
 
         if has_replicating_only_metrics:
@@ -152,19 +185,31 @@ if __name__ == '__main__':
         else:
             repl_cpu_usage_df = None
 
-        adapt_cpu_usage_df = pd.read_csv(lrb_adaptive_cpu_usage_file, usecols=cpu_usage_col_list)
-        # last_before_start = adapt_cpu_usage_df.loc[adapt_cpu_usage_df['value'] < 1].iloc[-1]['time']
-        # adapt_cpu_usage_df = adapt_cpu_usage_df.loc[adapt_cpu_usage_df['time'] > last_before_start]
-        adapt_cpu_usage_df['rel_time'] = adapt_cpu_usage_df['time'].subtract(adapt_cpu_usage_df['time'].min()).div(
-            1_000_000_000)
-        print(adapt_cpu_usage_df)
+        if has_adaptive_metrics:
+            adapt_cpu_usage_df = pd.read_csv(lrb_adaptive_cpu_usage_file, usecols=cpu_usage_col_list)
+            adapt_cpu_usage_df['rel_time'] = adapt_cpu_usage_df['time'].subtract(adapt_cpu_usage_df['time'].min()).div(
+                1_000_000_000)
+            print(adapt_cpu_usage_df)
+        else:
+            adapt_cpu_usage_df = None
+
+        if has_scheduling_only_metrics:
+            sched_cpu_usage_df = pd.read_csv(lrb_scheduling_cpu_usage_file, usecols=cpu_usage_col_list)
+            sched_cpu_usage_df['rel_time'] = sched_cpu_usage_df['time'].subtract(sched_cpu_usage_df['time'].min()).div(
+                1_000_000_000)
+            print(sched_cpu_usage_df)
+        else:
+            sched_cpu_usage_df = None
 
         cpu_fig, cpu_ax = plt.subplots(figsize=(12, 8))
 
         cpu_ax.plot(cpu_usage_df["rel_time"], cpu_usage_df["value"], label="LRB-Default")
         if has_replicating_only_metrics:
             cpu_ax.plot(repl_cpu_usage_df["rel_time"], repl_cpu_usage_df["value"], label="LRB-Replicating")
-        cpu_ax.plot(adapt_cpu_usage_df["rel_time"], adapt_cpu_usage_df["value"], label="LRB-Adaptive")
+        if has_adaptive_metrics:
+            cpu_ax.plot(adapt_cpu_usage_df["rel_time"], adapt_cpu_usage_df["value"], label="LRB-Adaptive")
+        if has_scheduling_only_metrics:
+            cpu_ax.plot(sched_cpu_usage_df["rel_time"], sched_cpu_usage_df["value"], label="LRB-Scheduling")
 
         # cpu_ax.set_ylim(bottom=0)
         cpu_ax.set(xlabel="Time (sec)", ylabel="CPU Usage (%)", title="CPU Usage")
@@ -185,13 +230,25 @@ if __name__ == '__main__':
         else:
             lrb_replicating_mem_usage_file = None
 
-        lrb_adaptive_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
+        if has_adaptive_metrics:
+            lrb_adaptive_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
                                                    file_date_adaptive,
                                                    "lrb_adaptive")
+        else:
+            lrb_adaptive_mem_usage_file = None
+
+        if has_scheduling_only_metrics:
+            lrb_scheduling_mem_usage_file = get_filename(data_dir, exp_date_id, "taskmanager_Status_JVM_Memory_Heap_Used",
+                                                   file_date_adaptive,
+                                                   "lrb_scheduling")
+        else:
+            lrb_scheduling_mem_usage_file = None
+
         mem_usage_col_list = ["name", "time", "value"]
         mem_usage_df = pd.read_csv(lrb_default_mem_usage_file, usecols=mem_usage_col_list)
         mem_usage_df['rel_time'] = mem_usage_df['time'].subtract(mem_usage_df['time'].min()).div(
-            1_000_000_000)
+            1_000_000_000).subtract(default_offset)
+        mem_usage_df = mem_usage_df.loc[mem_usage_df['rel_time'] > 0]
         mem_usage_df['value'] = mem_usage_df['value'].div(1048576)
         print(mem_usage_df)
 
@@ -204,18 +261,33 @@ if __name__ == '__main__':
         else:
             repl_mem_usage_df = None
 
-        adapt_mem_usage_df = pd.read_csv(lrb_adaptive_mem_usage_file, usecols=mem_usage_col_list)
-        adapt_mem_usage_df['rel_time'] = adapt_mem_usage_df['time'].subtract(adapt_mem_usage_df['time'].min()).div(
-            1_000_000_000)
-        adapt_mem_usage_df['value'] = adapt_mem_usage_df['value'].div(1048576)
-        print(adapt_mem_usage_df)
+        if has_adaptive_metrics:
+            adapt_mem_usage_df = pd.read_csv(lrb_adaptive_mem_usage_file, usecols=mem_usage_col_list)
+            adapt_mem_usage_df['rel_time'] = adapt_mem_usage_df['time'].subtract(adapt_mem_usage_df['time'].min()).div(
+                1_000_000_000)
+            adapt_mem_usage_df['value'] = adapt_mem_usage_df['value'].div(1048576)
+            print(adapt_mem_usage_df)
+        else:
+            adapt_mem_usage_df = None
+
+        if has_scheduling_only_metrics:
+            sched_mem_usage_df = pd.read_csv(lrb_scheduling_mem_usage_file, usecols=mem_usage_col_list)
+            sched_mem_usage_df['rel_time'] = sched_mem_usage_df['time'].subtract(sched_mem_usage_df['time'].min()).div(
+                1_000_000_000)
+            sched_mem_usage_df['value'] = sched_mem_usage_df['value'].div(1048576)
+            print(sched_mem_usage_df)
+        else:
+            sched_mem_usage_df = None
 
         mem_fig, mem_ax = plt.subplots(figsize=(12, 8))
 
         mem_ax.plot(mem_usage_df["rel_time"], mem_usage_df["value"], label="LRB-Default")
         if has_replicating_only_metrics:
             mem_ax.plot(repl_mem_usage_df["rel_time"], repl_mem_usage_df["value"], label="LRB-Replicating")
-        mem_ax.plot(adapt_mem_usage_df["rel_time"], adapt_mem_usage_df["value"], label="LRB-Adaptive")
+        if has_adaptive_metrics:
+            mem_ax.plot(adapt_mem_usage_df["rel_time"], adapt_mem_usage_df["value"], label="LRB-Adaptive")
+        if has_scheduling_only_metrics:
+            mem_ax.plot(sched_mem_usage_df["rel_time"], sched_mem_usage_df["value"], label="LRB-Scheduling")
 
         # mem_ax.set_ylim(bottom=0)
         mem_ax.set(xlabel="Time (sec)", ylabel="Memory Usage (MB)", title="Heap Memory")
