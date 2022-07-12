@@ -42,12 +42,30 @@ def get_grouped_df(col_list, data_file):
     return metric_grouped_df
 
 
+def get_df_without_groupby(col_list, data_file):
+    metric_df = pd.read_csv(data_file, usecols=col_list)
+    metric_df['rel_time'] = metric_df['time'].subtract(
+        metric_df['time'].min()).div(
+        1_000_000_000)
+    metric_df.set_index('rel_time', inplace=True)
+    return metric_df
+
+
+def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_filename):
+    data_df.groupby(group_by_col_name)['value'].plot(legend=True)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(plot_title)
+    plt.savefig(results_dir + "/" + plot_filename + "_" + exp_date_id + ".png")
+    plt.show()
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    exp_date_id = "jul-7-1"
-    file_date_default = "2022_07_07"
-    file_date_adaptive = "2022_07_07"
+    exp_date_id = "jul-12-local-1"
+    file_date_default = "2022_07_12"
+    file_date_adaptive = "2022_07_12"
     results_dir = "results/" + exp_date_id
     os.makedirs(results_dir, exist_ok=True)
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
@@ -60,18 +78,19 @@ if __name__ == '__main__':
     lrb_scheduling_num_out_file = data_dir + "/" + exp_date_id + \
                                   "/" + metric_name + "_lrb_scheduling_" + file_date_adaptive + ".csv"
 
-    upper_time_threshold = 500
-    lower_time_threshold = 100
+    upper_time_threshold = 600
+    lower_time_threshold = 0
     plot_tp = True
-    plot_cpu = True
-    plot_mem = True
-    plot_busy = True
+    plot_cpu = False
+    plot_mem = False
+    plot_busy = False
     plot_idle = False
-    plot_backpressure = True
+    plot_backpressure = False
     plot_iq_len = True
+    plot_nw = True
     has_replicating_only_metrics = False
-    has_scheduling_only_metrics = True
-    has_adaptive_metrics = False
+    has_scheduling_only_metrics = False
+    has_adaptive_metrics = True
 
     default_offset = 0
 
@@ -601,17 +620,19 @@ if __name__ == '__main__':
 
     if plot_iq_len:
         iq_len_col_list = ["name", "task_name", "subtask_index", "time", "value"]
+        x_label = "Time (sec)"
+        y_label = "Num. buffers"
+        plot_title_base = "Input Queue Length - "
+        plot_filename_base = "iq_len_"
+        group_by_col_name = "task_name"
+
         lrb_default_iq_len_file = get_filename(data_dir, exp_date_id,
                                                "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
                                                file_date_default,
                                                "lrb_default")
         iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_default_iq_len_file)
-        ax_iq_len_default = iq_len_grouped_df.groupby('task_name')['value'].plot(legend=True)
-        plt.xlabel("Time (sec)")
-        plt.ylabel("Num. buffers")
-        plt.title("Input Queue Length - Default")
-        plt.savefig(results_dir + "/iq_len_default_" + exp_date_id + ".png")
-        plt.show()
+        plot_metric(iq_len_grouped_df, x_label, y_label, plot_title_base + "Default", group_by_col_name,
+                    plot_filename_base + "default")
 
         if has_adaptive_metrics:
             lrb_adaptive_iq_len_file = get_filename(data_dir, exp_date_id,
@@ -619,24 +640,48 @@ if __name__ == '__main__':
                                                     file_date_adaptive,
                                                     "lrb_adaptive")
             adapt_iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_adaptive_iq_len_file)
-            ax_iq_len_adapt = adapt_iq_len_grouped_df.groupby('task_name')['value'].plot(
-                legend=True)
-            plt.xlabel("Time (sec)")
-            plt.ylabel("Num. buffers")
-            plt.title("Input Queue Length - Adaptive")
-            plt.savefig(results_dir + "/iq_len_adaptive_" + exp_date_id + ".png")
-            plt.show()
+            plot_metric(adapt_iq_len_grouped_df, x_label, y_label, plot_title_base + "Adaptive", group_by_col_name,
+                        plot_filename_base + "adaptive")
 
         if has_scheduling_only_metrics:
             lrb_scheduling_iq_len_file = get_filename(data_dir, exp_date_id,
                                                       "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
                                                       file_date_adaptive,
                                                       "lrb_scheduling")
-            adapt_iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_scheduling_iq_len_file)
-            ax_iq_len_sched = adapt_iq_len_grouped_df.groupby('task_name')['value'].plot(
-                legend=True)
-            plt.xlabel("Time (sec)")
-            plt.ylabel("Num. buffers")
-            plt.title("Input Queue Length - Scheduling")
-            plt.savefig(results_dir + "/iq_len_scheduling_" + exp_date_id + ".png")
-            plt.show()
+            sched_iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_scheduling_iq_len_file)
+            plot_metric(sched_iq_len_grouped_df, x_label, y_label, plot_title_base + "Scheduling", group_by_col_name,
+                        plot_filename_base + "scheduling")
+
+    if plot_nw:
+        nw_col_list = ["name", "host", "time", "value"]
+        x_label = "Time (sec)"
+        y_label = "Bytes/sec"
+        plot_title_base = "Network Receive Rate - "
+        plot_filename_base = "nw_"
+        group_by_col_name = "host"
+
+        lrb_default_nw_file = get_filename(data_dir, exp_date_id,
+                                           "taskmanager_System_Network_wlp0s20f3_ReceiveRate",
+                                           file_date_default,
+                                           "lrb_default")
+        nw_df = get_df_without_groupby(nw_col_list, lrb_default_nw_file)
+        plot_metric(nw_df, x_label, y_label, plot_title_base + "Default", group_by_col_name,
+                    plot_filename_base + "default")
+
+        if has_adaptive_metrics:
+            lrb_adaptive_nw_file = get_filename(data_dir, exp_date_id,
+                                                "taskmanager_System_Network_wlp0s20f3_ReceiveRate",
+                                                file_date_adaptive,
+                                                "lrb_adaptive")
+            adapt_nw_df = get_df_without_groupby(nw_col_list, lrb_adaptive_nw_file)
+            plot_metric(adapt_nw_df, x_label, y_label, plot_title_base + "Adaptive", group_by_col_name,
+                        plot_filename_base + "adaptive")
+
+        if has_scheduling_only_metrics:
+            lrb_scheduling_nw_file = get_filename(data_dir, exp_date_id,
+                                                  "taskmanager_System_Network_wlp0s20f3_ReceiveRate",
+                                                  file_date_adaptive,
+                                                  "lrb_scheduling")
+            sched_nw_df = get_df_without_groupby(nw_col_list, lrb_scheduling_nw_file)
+            plot_metric(sched_nw_df, x_label, y_label, plot_title_base + "Scheduling", group_by_col_name,
+                        plot_filename_base + "scheduling")
