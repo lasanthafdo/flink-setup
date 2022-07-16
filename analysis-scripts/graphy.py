@@ -23,8 +23,8 @@ def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_thr
         (lrb_src_df['rel_time'] > lower_threshold) & (
                 lrb_src_df['rel_time'] < upper_threshold)]
     lrb_avg = np.mean(lrb_src_df['rate'])
-    print("Printing values for LRB-" + policy_name)
-    print(lrb_src_df)
+    # print("Printing values for LRB-" + policy_name)
+    # print(lrb_src_df)
     return lrb_src_df, lrb_avg
 
 
@@ -51,6 +51,18 @@ def get_df_without_groupby(col_list, data_file):
     return metric_df
 
 
+def combine_df_without_groupby(original_df, col_list, data_file, sched_policy):
+    metric_df = pd.read_csv(data_file, usecols=col_list)
+    metric_df['rel_time'] = metric_df['time'].subtract(
+        metric_df['time'].min()).div(
+        1_000_000_000)
+    metric_df['sched_policy'] = sched_policy
+    metric_df.set_index('rel_time', inplace=True)
+    combined_df = pd.concat([original_df, metric_df])
+    print(combined_df)
+    return combined_df
+
+
 def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_filename):
     data_df.groupby(group_by_col_name)['value'].plot(legend=True)
     plt.xlabel(x_label)
@@ -63,9 +75,9 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    exp_date_id = "jul-12-local-1"
-    file_date_default = "2022_07_12"
-    file_date_adaptive = "2022_07_12"
+    exp_date_id = "jul-16-1"
+    file_date_default = "2022_07_16"
+    file_date_adaptive = "2022_07_16"
     results_dir = "results/" + exp_date_id
     os.makedirs(results_dir, exist_ok=True)
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
@@ -81,16 +93,16 @@ if __name__ == '__main__':
     upper_time_threshold = 600
     lower_time_threshold = 0
     plot_tp = True
-    plot_cpu = False
-    plot_mem = False
-    plot_busy = False
+    plot_cpu = True
+    plot_mem = True
+    plot_busy = True
     plot_idle = False
-    plot_backpressure = False
+    plot_backpressure = True
     plot_iq_len = True
     plot_nw = True
     has_replicating_only_metrics = False
-    has_scheduling_only_metrics = False
-    has_adaptive_metrics = True
+    has_scheduling_only_metrics = True
+    has_adaptive_metrics = False
 
     default_offset = 0
 
@@ -100,6 +112,14 @@ if __name__ == '__main__':
                                                                  lower_time_threshold, upper_time_threshold,
                                                                  default_offset,
                                                                  "Default")
+
+        lrb_df = pd.read_csv(lrb_default_num_out_file, usecols=col_list)
+        src_task_indexes = lrb_df[lrb_df['operator_name'].str.contains('Source:')]['subtask_index'].unique()
+        other_task_indexes = lrb_df[lrb_df['operator_name'].str.contains('des')]['subtask_index'].unique()
+        src_task_indexes.sort()
+        other_task_indexes.sort()
+        print("Source subtasks: " + str(src_task_indexes))
+        print("Deserialization (and other) subtasks: " + str(other_task_indexes))
 
         if has_replicating_only_metrics:
             replicating_offset = 0
@@ -111,7 +131,7 @@ if __name__ == '__main__':
             lrb_replicating_avg = None
 
         if has_scheduling_only_metrics:
-            scheduling_offset = 0
+            scheduling_offset = 8
             lrb_scheduling_src_df, lrb_scheduling_avg = get_formatted_tput(lrb_scheduling_num_out_file, col_list,
                                                                            lower_time_threshold, upper_time_threshold,
                                                                            scheduling_offset, "Replicating")
@@ -659,29 +679,38 @@ if __name__ == '__main__':
         plot_title_base = "Network Receive Rate - "
         plot_filename_base = "nw_"
         group_by_col_name = "host"
+        nw_if = "enp4s0"
 
         lrb_default_nw_file = get_filename(data_dir, exp_date_id,
-                                           "taskmanager_System_Network_wlp0s20f3_ReceiveRate",
+                                           "taskmanager_System_Network_" + nw_if + "_ReceiveRate",
                                            file_date_default,
                                            "lrb_default")
         nw_df = get_df_without_groupby(nw_col_list, lrb_default_nw_file)
+        combined_df = nw_df
+        combined_df['sched_policy'] = "LRB-Default"
         plot_metric(nw_df, x_label, y_label, plot_title_base + "Default", group_by_col_name,
                     plot_filename_base + "default")
 
         if has_adaptive_metrics:
             lrb_adaptive_nw_file = get_filename(data_dir, exp_date_id,
-                                                "taskmanager_System_Network_wlp0s20f3_ReceiveRate",
+                                                "taskmanager_System_Network_" + nw_if + "_ReceiveRate",
                                                 file_date_adaptive,
                                                 "lrb_adaptive")
             adapt_nw_df = get_df_without_groupby(nw_col_list, lrb_adaptive_nw_file)
+            combined_df = combine_df_without_groupby(combined_df, nw_col_list, lrb_adaptive_nw_file, "LRB-Adaptive")
             plot_metric(adapt_nw_df, x_label, y_label, plot_title_base + "Adaptive", group_by_col_name,
                         plot_filename_base + "adaptive")
 
         if has_scheduling_only_metrics:
             lrb_scheduling_nw_file = get_filename(data_dir, exp_date_id,
-                                                  "taskmanager_System_Network_wlp0s20f3_ReceiveRate",
+                                                  "taskmanager_System_Network_" + nw_if + "_ReceiveRate",
                                                   file_date_adaptive,
                                                   "lrb_scheduling")
             sched_nw_df = get_df_without_groupby(nw_col_list, lrb_scheduling_nw_file)
+            combined_df = combine_df_without_groupby(combined_df, nw_col_list, lrb_scheduling_nw_file, "LRB-Scheduling")
             plot_metric(sched_nw_df, x_label, y_label, plot_title_base + "Scheduling", group_by_col_name,
                         plot_filename_base + "scheduling")
+
+        combined_df = combined_df.loc[
+            (combined_df.index > lower_time_threshold) & (combined_df.index < upper_time_threshold)]
+        plot_metric(combined_df, x_label, y_label, "Network Receive Rate", "sched_policy", "nw_rcv")
