@@ -3,11 +3,11 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-import matplotlib.pyplot as plt
+import os
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import os
 
 pd.set_option('display.max_columns', None)
 
@@ -23,8 +23,6 @@ def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_thr
         (lrb_src_df['rel_time'] > lower_threshold) & (
                 lrb_src_df['rel_time'] < upper_threshold)]
     lrb_avg = np.mean(lrb_src_df['rate'])
-    # print("Printing values for LRB-" + policy_name)
-    # print(lrb_src_df)
     return lrb_src_df, lrb_avg
 
 
@@ -75,23 +73,23 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "jul-27-1"
-    file_date_default = "2022_07_27"
-    file_date_adaptive = "2022_07_27"
+    experiment_date_id = "jul-25-1"
+    file_date_default = "2022_07_25"
+    file_date_adaptive = "2022_07_25"
     results_dir = "results/" + experiment_date_id
     os.makedirs(results_dir, exist_ok=True)
-    parallelism_level = "20"
+    parallelism_level = "24"
 
     upper_time_threshold = 580
     lower_time_threshold = 80
     plot_tp = True
     plot_cpu = False
     plot_mem = False
-    plot_busy = True
-    plot_idle = True
-    plot_backpressure = True
-    plot_iq_len = True
-    plot_nw = True
+    plot_busy = False
+    plot_idle = False
+    plot_backpressure = False
+    plot_iq_len = False
+    plot_nw = False
 
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
