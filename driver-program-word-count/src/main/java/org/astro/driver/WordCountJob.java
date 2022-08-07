@@ -100,7 +100,7 @@ public class WordCountJob {
 			.setParallelism(sinkParallelism)
 			.name("count-sink").disableChaining();
 
-		env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
+		// env.enableCheckpointing(TimeUnit.MINUTES.toMillis(5));
 
 		env.execute("Word Count");
 	}
