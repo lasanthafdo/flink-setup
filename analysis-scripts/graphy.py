@@ -12,7 +12,7 @@ import pandas as pd
 pd.set_option('display.max_columns', None)
 
 
-def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset, policy_name):
+def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
     print("Reading file : " + lrb_num_out_file)
     lrb_df = pd.read_csv(lrb_num_out_file, usecols=column_list)
     lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
@@ -20,10 +20,23 @@ def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_thr
     lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
         1_000_000_000).subtract(offset)
     lrb_src_df = lrb_src_df.loc[
-        (lrb_src_df['rel_time'] > lower_threshold) & (
-                lrb_src_df['rel_time'] < upper_threshold)]
+        (lrb_src_df['rel_time'] > lower_threshold) & (lrb_src_df['rel_time'] < upper_threshold)]
     lrb_avg = np.mean(lrb_src_df['rate'])
     return lrb_src_df, lrb_avg
+
+
+def get_formatted_latency(lrb_latency_file, column_list, lower_threshold, upper_threshold, offset, target_op_id,
+                          target_stat):
+    print("Reading file : " + lrb_latency_file)
+    lrb_latency_df = pd.read_csv(lrb_latency_file, usecols=column_list)
+    lrb_sink_latency_df = lrb_latency_df[lrb_latency_df['operator_id'] == target_op_id].drop(
+        ['name'], axis=1).groupby(['time'])[['mean', 'p50', 'p95', 'p99']].mean().reset_index()
+    lrb_sink_latency_df['rel_time'] = lrb_sink_latency_df['time'].subtract(lrb_sink_latency_df['time'].min()).div(
+        1_000_000_000).subtract(offset)
+    lrb_sink_latency_df = lrb_sink_latency_df.loc[
+        (lrb_sink_latency_df['rel_time'] > lower_threshold) & (lrb_sink_latency_df['rel_time'] < upper_threshold)]
+    lrb_avg = np.mean(lrb_sink_latency_df[target_stat])
+    return lrb_sink_latency_df, lrb_avg
 
 
 def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy, par_level='12'):
@@ -70,19 +83,26 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
     plt.show()
 
 
+def get_op_name_id_mapping(lrb_tp_file):
+    op_name_id_mapping_df = pd.read_csv(lrb_tp_file, usecols=['operator_name', 'operator_id']).drop_duplicates()
+    op_name_id_dict = dict(zip(op_name_id_mapping_df['operator_name'], op_name_id_mapping_df['operator_id']))
+    return op_name_id_dict
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "jul-25-1"
-    file_date_default = "2022_07_25"
-    file_date_adaptive = "2022_07_25"
+    experiment_date_id = "aug-7-2"
+    file_date_default = "2022_08_07"
+    file_date_adaptive = "2022_08_07"
     results_dir = "results/" + experiment_date_id
     os.makedirs(results_dir, exist_ok=True)
     parallelism_level = "24"
 
     upper_time_threshold = 580
-    lower_time_threshold = 80
+    lower_time_threshold = 0
     plot_tp = True
+    plot_latency = True
     plot_cpu = False
     plot_mem = False
     plot_busy = False
@@ -98,60 +118,71 @@ if __name__ == '__main__':
     default_offset = 0
 
     if plot_tp:
-        col_list = ["name", "time", "operator_name", "task_name", "subtask_index", "count", "rate"]
+        col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
         metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
-        lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                "lrb_default",
-                                                parallelism_level)
-        lrb_adaptive_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                 "lrb_adaptive",
-                                                 parallelism_level)
-        lrb_replicating_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                    "lrb_replicating", parallelism_level)
-        lrb_scheduling_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                   "lrb_scheduling", parallelism_level)
-        lrb_default_src_df, lrb_default_avg = get_formatted_tput(lrb_default_num_out_file, col_list,
-                                                                 lower_time_threshold, upper_time_threshold,
-                                                                 default_offset, "Default")
+        lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                           "lrb_default",
+                                           parallelism_level)
+        lrb_adaptive_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                            "lrb_adaptive",
+                                            parallelism_level)
+        lrb_replicating_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                               "lrb_replicating", parallelism_level)
+        lrb_scheduling_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                              "lrb_scheduling", parallelism_level)
+        lrb_default_src_tp_df, lrb_default_tp_avg = get_formatted_tput(lrb_default_tp_file, col_list,
+                                                                       lower_time_threshold,
+                                                                       upper_time_threshold,
+                                                                       default_offset)
 
-        lrb_df = pd.read_csv(lrb_default_num_out_file, usecols=col_list)
-        src_task_indexes = lrb_df[lrb_df['operator_name'].str.contains('Source:')]['subtask_index'].unique()
-        other_task_indexes = lrb_df[lrb_df['operator_name'].str.contains('tsw')]['subtask_index'].unique()
+        lrb_default_df = pd.read_csv(lrb_default_tp_file, usecols=col_list)
+        src_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('Source:')][
+            'subtask_index'].unique()
+        other_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('tsw')][
+            'subtask_index'].unique()
         src_task_indexes.sort()
         other_task_indexes.sort()
         print("Source subtasks: " + str(src_task_indexes))
         print("Other subtasks: " + str(other_task_indexes))
 
+        lrb_default_op_name_id_dict = get_op_name_id_mapping(lrb_default_tp_file)
+
         if has_replicating_only_metrics:
             replicating_offset = 0
-            lrb_replicating_src_df, lrb_replicating_avg = get_formatted_tput(lrb_replicating_num_out_file, col_list,
+            lrb_replicating_src_df, lrb_replicating_avg = get_formatted_tput(lrb_replicating_tp_file, col_list,
                                                                              lower_time_threshold, upper_time_threshold,
-                                                                             replicating_offset, "Replicating")
+                                                                             replicating_offset)
+            lrb_replicating_op_name_id_dict = get_op_name_id_mapping(lrb_replicating_tp_file)
         else:
             lrb_replicating_src_df = None
             lrb_replicating_avg = None
+            lrb_replicating_op_name_id_dict = None
 
         if has_scheduling_only_metrics:
             scheduling_offset = 0
-            lrb_scheduling_src_df, lrb_scheduling_avg = get_formatted_tput(lrb_scheduling_num_out_file, col_list,
+            lrb_scheduling_src_df, lrb_scheduling_avg = get_formatted_tput(lrb_scheduling_tp_file, col_list,
                                                                            lower_time_threshold, upper_time_threshold,
-                                                                           scheduling_offset, "Replicating")
+                                                                           scheduling_offset)
+            lrb_scheduling_op_name_id_dict = get_op_name_id_mapping(lrb_scheduling_tp_file)
         else:
             lrb_scheduling_src_df = None
             lrb_scheduling_avg = None
+            lrb_scheduling_op_name_id_dict = None
 
         if has_adaptive_metrics:
             adaptive_offset = 0
-            lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_num_out_file, col_list,
+            lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_tp_file, col_list,
                                                                        lower_time_threshold, upper_time_threshold,
-                                                                       adaptive_offset, "Adaptive")
+                                                                       adaptive_offset)
+            lrb_adaptive_op_name_id_dict = get_op_name_id_mapping(lrb_adaptive_tp_file)
         else:
             lrb_adaptive_src_df = None
             lrb_adaptive_avg = None
+            lrb_adaptive_op_name_id_dict = None
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
-        ax.plot(lrb_default_src_df["rel_time"], lrb_default_src_df["rate"], label="LRB-Default")
+        ax.plot(lrb_default_src_tp_df["rel_time"], lrb_default_src_tp_df["rate"], label="LRB-Default")
         if has_replicating_only_metrics:
             ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["rate"], label="LRB-Replicating")
         if has_adaptive_metrics:
@@ -159,8 +190,8 @@ if __name__ == '__main__':
         if has_scheduling_only_metrics:
             ax.plot(lrb_scheduling_src_df["rel_time"], lrb_scheduling_src_df["rate"], label="LRB-Scheduling")
 
-        plt.axhline(y=lrb_default_avg, ls='--', color='c', label="LRB-Default-Avg")
-        plt.text(100, lrb_default_avg + 5000, 'Default Avg. TP = ' + f'{lrb_default_avg:,.2f}')
+        plt.axhline(y=lrb_default_tp_avg, ls='--', color='c', label="LRB-Default-Avg")
+        plt.text(100, lrb_default_tp_avg + 5000, 'Default Avg. TP = ' + f'{lrb_default_tp_avg:,.2f}')
         if has_replicating_only_metrics:
             plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
             plt.text(200, lrb_replicating_avg + 5000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
@@ -180,7 +211,8 @@ if __name__ == '__main__':
 
         count_fig, count_ax = plt.subplots(figsize=(12, 6))
 
-        count_ax.plot(lrb_default_src_df["rel_time"], lrb_default_src_df["count"], label="LRB-Default")
+        count_ax.plot(lrb_default_src_tp_df["rel_time"], lrb_default_src_tp_df["count"],
+                      label="LRB-Default")
         if has_replicating_only_metrics:
             count_ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["count"], label="LRB-Replicating")
         if has_adaptive_metrics:
@@ -193,6 +225,88 @@ if __name__ == '__main__':
         count_ax.tick_params(axis="x", rotation=0)
         count_ax.legend()
         plt.savefig(results_dir + "/count_" + parallelism_level + "_" + experiment_date_id + ".png")
+        plt.show()
+    else:
+        lrb_default_op_name_id_dict = None
+        lrb_replicating_op_name_id_dict = None
+        lrb_scheduling_op_name_id_dict = None
+        lrb_adaptive_op_name_id_dict = None
+
+    if plot_latency:
+        col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
+        metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
+        target_op_name = 'acc_win_1'
+        target_stat = 'p95'
+        print(lrb_default_op_name_id_dict)
+        lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                                "lrb_default",
+                                                parallelism_level)
+        target_op_id = lrb_default_op_name_id_dict[target_op_name]
+        lrb_default_sink_latency_df, lrb_default_latency_avg = get_formatted_latency(lrb_default_latency_file, col_list,
+                                                                                     lower_time_threshold,
+                                                                                     upper_time_threshold,
+                                                                                     default_offset,
+                                                                                     target_op_id, target_stat)
+        print(lrb_default_sink_latency_df)
+        fig, ax = plt.subplots(figsize=(12, 6))
+
+        ax.plot(lrb_default_sink_latency_df["rel_time"], lrb_default_sink_latency_df[target_stat], label="LRB-Default")
+        plt.axhline(y=lrb_default_latency_avg, ls='--', color='c', label="LRB-Default-Avg")
+        plt.text(100, lrb_default_latency_avg + 50,
+                 'Avg. ' + target_stat + ' latency (ms) - Default = ' + f'{lrb_default_latency_avg:,.2f}')
+
+        if has_replicating_only_metrics:
+            replicating_offset = 0
+            lrb_replicating_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                                        "lrb_replicating", parallelism_level)
+            target_op_id = lrb_replicating_op_name_id_dict[target_op_name]
+            lrb_replicating_sink_latency_df, lrb_replicating_latency_avg = get_formatted_latency(
+                lrb_replicating_latency_file, col_list, lower_time_threshold, upper_time_threshold, replicating_offset,
+                target_op_id, target_stat)
+            ax.plot(lrb_replicating_sink_latency_df["rel_time"], lrb_replicating_sink_latency_df[target_stat],
+                    label="LRB-Replicating")
+            plt.axhline(y=lrb_replicating_latency_avg, ls='--', color='m', label="LRB-Replicating-Avg")
+            plt.text(200, lrb_replicating_latency_avg + 50,
+                     'Avg. ' + target_stat + ' latency (ms) - Replicating = ' + f'{lrb_replicating_latency_avg:,.2f}')
+
+        if has_scheduling_only_metrics:
+            scheduling_offset = 0
+            lrb_scheduling_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                                       "lrb_scheduling", parallelism_level)
+            target_op_id = lrb_scheduling_op_name_id_dict[target_op_name]
+            lrb_scheduling_sink_latency_df, lrb_scheduling_latency_avg = get_formatted_latency(
+                lrb_scheduling_latency_file, col_list, lower_time_threshold, upper_time_threshold, scheduling_offset,
+                target_op_id, target_stat)
+            ax.plot(lrb_scheduling_sink_latency_df["rel_time"], lrb_scheduling_sink_latency_df[target_stat],
+                    label="LRB-Scheduling")
+            plt.axhline(y=lrb_scheduling_latency_avg, ls='--', color='y', label="LRB-Scheduling-Avg")
+            plt.text(360, lrb_scheduling_latency_avg - 50,
+                     'Avg. ' + target_stat + ' latency (ms) - Scheduling = ' + f'{lrb_scheduling_latency_avg:,.2f}')
+
+        if has_adaptive_metrics:
+            adaptive_offset = 0
+            lrb_adaptive_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                                     "lrb_adaptive", parallelism_level)
+            target_op_id = lrb_adaptive_op_name_id_dict[target_op_name]
+            lrb_adaptive_sink_latency_df, lrb_adaptive_latency_avg = get_formatted_latency(lrb_adaptive_latency_file,
+                                                                                           col_list,
+                                                                                           lower_time_threshold,
+                                                                                           upper_time_threshold,
+                                                                                           adaptive_offset,
+                                                                                           target_op_id, target_stat)
+            print(lrb_adaptive_sink_latency_df)
+            ax.plot(lrb_adaptive_sink_latency_df["rel_time"], lrb_adaptive_sink_latency_df[target_stat],
+                    label="LRB-Adaptive")
+            plt.axhline(y=lrb_adaptive_latency_avg, ls='--', color='r', label="LRB-Adaptive-Avg")
+            plt.text(260, lrb_adaptive_latency_avg + 50,
+                     'Avg. ' + target_stat + ' latency (ms) - Adaptive = ' + f'{lrb_adaptive_latency_avg:,.2f}')
+
+        # ax.set_ylim(bottom=0)
+        ax.set(xlabel="Time (sec)", ylabel="Latency (ms)", title="Mean Latency - Operator: " + target_op_name)
+        ax.tick_params(axis="x", rotation=0)
+        ax.legend()
+        plt.savefig(
+            results_dir + "/latency_" + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
 
     if plot_cpu:
