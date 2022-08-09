@@ -96,7 +96,7 @@ if __name__ == '__main__':
     experiment_date_id = "aug-9-1"
     file_date_default = "2022_08_09"
     file_date_adaptive = "2022_08_09"
-    results_dir = "results/" + experiment_date_id
+    results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
     upper_time_threshold = 580
@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
             if has_scheduling_only_metrics:
                 scheduling_offset = 0
-                for sched_period in [5, 20, 50, 200]:
+                for sched_period in [1, 2, 5, 20, 50, 100, 200]:
                     lrb_scheduling_num_out_file = get_filename(data_dir, experiment_date_id, metric_name,
                                                                file_date_default,
                                                                "lrb_scheduling", str(parallelism_level),
@@ -186,7 +186,7 @@ if __name__ == '__main__':
         col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'toll_win_1'
-        target_stat = 'mean'
+        target_stat = 'p99'
 
         print(lrb_default_op_name_id_dict)
 
@@ -215,7 +215,7 @@ if __name__ == '__main__':
 
             if has_scheduling_only_metrics:
                 scheduling_offset = 0
-                for sched_period in [5, 20, 50, 200]:
+                for sched_period in [1, 2, 5, 20, 50, 100, 200]:
                     lrb_scheduling_num_out_file = get_filename(data_dir, experiment_date_id, metric_name,
                                                                file_date_default,
                                                                "lrb_scheduling", str(parallelism_level),
@@ -248,9 +248,11 @@ if __name__ == '__main__':
 
         ax = pivoted_lrb_avg_latency_all_df.plot.bar(rot=0)
         ax.ticklabel_format(style='plain', axis='y')
-        ax.set_ylabel('ms')
+        ax.set_ylabel('Time (ms)')
+        ax.set_ylim(top=6000)
         ax.legend()
-        plt.title('LRB Avg. Latency - 4 source replicas')
+        plt.title('LRB ' + target_stat + ' latency - 4 source replicas - ' + target_op_name)
         plt.tight_layout()
-        plt.savefig(results_dir + "/latency_all_" + experiment_date_id + ".png")
+        plt.savefig(
+            results_dir + "/latency_all_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
