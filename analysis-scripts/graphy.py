@@ -92,9 +92,9 @@ def get_op_name_id_mapping(lrb_tp_file):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-7-2"
-    file_date_default = "2022_08_07"
-    file_date_adaptive = "2022_08_07"
+    experiment_date_id = "aug-8-2"
+    file_date_default = "2022_08_08"
+    file_date_adaptive = "2022_08_08"
     results_dir = "results/" + experiment_date_id
     os.makedirs(results_dir, exist_ok=True)
     parallelism_level = "24"
@@ -121,14 +121,12 @@ if __name__ == '__main__':
         col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
         metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
         lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                           "lrb_default",
-                                           parallelism_level)
-        lrb_adaptive_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                            "lrb_adaptive",
-                                            parallelism_level)
+                                           "lrb_default", parallelism_level)
+        lrb_adaptive_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
+                                            "lrb_adaptive", parallelism_level)
         lrb_replicating_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
                                                "lrb_replicating", parallelism_level)
-        lrb_scheduling_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+        lrb_scheduling_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
                                               "lrb_scheduling", parallelism_level)
         lrb_default_src_tp_df, lrb_default_tp_avg = get_formatted_tput(lrb_default_tp_file, col_list,
                                                                        lower_time_threshold,
@@ -235,8 +233,8 @@ if __name__ == '__main__':
     if plot_latency:
         col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
-        target_op_name = 'acc_win_1'
-        target_stat = 'p95'
+        target_op_name = 'toll_win_1'
+        target_stat = 'mean'
         print(lrb_default_op_name_id_dict)
         lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
                                                 "lrb_default",
@@ -271,7 +269,7 @@ if __name__ == '__main__':
 
         if has_scheduling_only_metrics:
             scheduling_offset = 0
-            lrb_scheduling_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+            lrb_scheduling_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
                                                        "lrb_scheduling", parallelism_level)
             target_op_id = lrb_scheduling_op_name_id_dict[target_op_name]
             lrb_scheduling_sink_latency_df, lrb_scheduling_latency_avg = get_formatted_latency(
@@ -285,7 +283,7 @@ if __name__ == '__main__':
 
         if has_adaptive_metrics:
             adaptive_offset = 0
-            lrb_adaptive_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+            lrb_adaptive_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
                                                      "lrb_adaptive", parallelism_level)
             target_op_id = lrb_adaptive_op_name_id_dict[target_op_name]
             lrb_adaptive_sink_latency_df, lrb_adaptive_latency_avg = get_formatted_latency(lrb_adaptive_latency_file,
