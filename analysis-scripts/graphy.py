@@ -50,6 +50,7 @@ def get_grouped_df(col_list, data_file):
     metric_grouped_df['rel_time'] = metric_grouped_df['time'].subtract(
         metric_grouped_df['time'].min()).div(
         1_000_000_000)
+    metric_grouped_df.set_index('rel_time', inplace=True)
     return metric_grouped_df
 
 
@@ -92,12 +93,12 @@ def get_op_name_id_mapping(lrb_tp_file):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-9-1"
-    file_date_default = "2022_08_09"
-    file_date_adaptive = "2022_08_09"
-    results_dir = "results/" + experiment_date_id
+    experiment_date_id = "aug-16-local-1"
+    file_date_default = "2022_08_16"
+    file_date_adaptive = "2022_08_16"
+    parallelism_level = "4"
+    results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
-    parallelism_level = "8"
     scheduling_period = "5"
 
     upper_time_threshold = 580
@@ -110,18 +111,19 @@ if __name__ == '__main__':
     plot_idle = True
     plot_backpressure = True
     plot_iq_len = True
-    plot_nw = False
+    plot_nw = True
 
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
     has_adaptive_metrics = False
 
     default_offset = 0
+    default_id_str = "lrb_default"
 
     if plot_tp:
         col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
         metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
-        lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default, "lrb_default",
+        lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default, default_id_str,
                                            parallelism_level)
         lrb_adaptive_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
                                             "lrb_adaptive", parallelism_level, scheduling_period)
@@ -238,7 +240,7 @@ if __name__ == '__main__':
         target_stat = 'p95'
         print(lrb_default_op_name_id_dict)
         lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                "lrb_default", parallelism_level)
+                                                default_id_str, parallelism_level)
         target_op_id = lrb_default_op_name_id_dict[target_op_name]
         lrb_default_sink_latency_df, lrb_default_latency_avg = get_formatted_latency(lrb_default_latency_file, col_list,
                                                                                      lower_time_threshold,
@@ -310,7 +312,7 @@ if __name__ == '__main__':
 
     if plot_cpu:
         lrb_default_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
-                                                  file_date_default, "lrb_default", parallelism_level)
+                                                  file_date_default, default_id_str, parallelism_level)
         if has_replicating_only_metrics:
             lrb_replicating_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
                                                           file_date_adaptive, "lrb_replicating", parallelism_level,
@@ -383,7 +385,7 @@ if __name__ == '__main__':
     if plot_mem:
         lrb_default_mem_usage_file = get_filename(data_dir, experiment_date_id,
                                                   "taskmanager_Status_JVM_Memory_Heap_Used", file_date_default,
-                                                  "lrb_default", parallelism_level)
+                                                  default_id_str, parallelism_level)
         if has_replicating_only_metrics:
             lrb_replicating_mem_usage_file = get_filename(data_dir, experiment_date_id,
                                                           "taskmanager_Status_JVM_Memory_Heap_Used", file_date_adaptive,
@@ -469,7 +471,7 @@ if __name__ == '__main__':
 
         lrb_default_busy_time_file = get_filename(data_dir, experiment_date_id,
                                                   "taskmanager_job_task_busyTimeMsPerSecond", file_date_default,
-                                                  "lrb_default", parallelism_level)
+                                                  default_id_str, parallelism_level)
         busy_time_df = pd.read_csv(lrb_default_busy_time_file, usecols=busy_time_col_list)
         busy_time_grouped_df = busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
         busy_time_grouped_df['rel_time'] = busy_time_grouped_df['time'].subtract(
@@ -596,7 +598,7 @@ if __name__ == '__main__':
 
         lrb_default_idle_time_file = get_filename(data_dir, experiment_date_id,
                                                   "taskmanager_job_task_idleTimeMsPerSecond", file_date_default,
-                                                  "lrb_default", parallelism_level)
+                                                  default_id_str, parallelism_level)
         idle_time_grouped_df = get_grouped_df(idle_time_col_list, lrb_default_idle_time_file)
         plot_metric(idle_time_grouped_df, x_label, y_label, plot_title_base + "Default",
                     group_by_col_name, plot_filename_base + "default", experiment_date_id)
@@ -636,7 +638,7 @@ if __name__ == '__main__':
 
         lrb_default_backpressured_time_file = get_filename(data_dir, experiment_date_id,
                                                            "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                           file_date_default, "lrb_default", parallelism_level)
+                                                           file_date_default, default_id_str, parallelism_level)
         backpressured_time_grouped_df = get_grouped_df(backpressured_time_col_list, lrb_default_backpressured_time_file)
         plot_metric(backpressured_time_grouped_df, x_label, y_label, plot_title_base + "Default",
                     group_by_col_name, plot_filename_base + "default", experiment_date_id)
@@ -681,7 +683,7 @@ if __name__ == '__main__':
 
         lrb_default_iq_len_file = get_filename(data_dir, experiment_date_id,
                                                "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
-                                               file_date_default, "lrb_default", parallelism_level)
+                                               file_date_default, default_id_str, parallelism_level)
         iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_default_iq_len_file)
         plot_metric(iq_len_grouped_df, x_label, y_label, plot_title_base + "Default", group_by_col_name,
                     plot_filename_base + "default", experiment_date_id)
@@ -711,11 +713,11 @@ if __name__ == '__main__':
         plot_title_base = "Network Receive Rate - "
         plot_filename_base = "nw_"
         group_by_col_name = "host"
-        nw_if = "enp4s0"
+        nw_if = "wlp0s20f3"
 
         lrb_default_nw_file = get_filename(data_dir, experiment_date_id,
                                            "taskmanager_System_Network_" + nw_if + "_ReceiveRate", file_date_default,
-                                           "lrb_default", parallelism_level)
+                                           default_id_str, parallelism_level)
         nw_df = get_df_without_groupby(nw_col_list, lrb_default_nw_file)
         combined_df = nw_df
         combined_df['sched_policy'] = "LRB-Default"

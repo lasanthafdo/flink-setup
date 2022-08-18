@@ -12,7 +12,7 @@ import pandas as pd
 pd.set_option('display.max_columns', None)
 
 
-def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset, policy_name):
+def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
     print("Reading file : " + lrb_num_out_file)
     lrb_df = pd.read_csv(lrb_num_out_file, usecols=column_list)
     lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
@@ -23,6 +23,23 @@ def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_thr
         (lrb_src_df['rel_time'] > lower_threshold) & (
                 lrb_src_df['rel_time'] < upper_threshold)]
     lrb_avg = np.mean(lrb_src_df['rate'])
+    return lrb_src_df, lrb_avg
+
+
+def get_formatted_value_for_task(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset,
+                                 task='Source:'):
+    print("Reading file : " + lrb_num_out_file)
+    lrb_df = pd.read_csv(lrb_num_out_file, usecols=column_list)
+    print(lrb_df[lrb_df['task_name'].str.contains(task)])
+    lrb_src_df = lrb_df[lrb_df['task_name'].str.contains(task)].drop(
+        ['name'], axis=1).groupby(['time'])[['value']].sum().reset_index()
+    print(lrb_src_df)
+    lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
+        1_000_000_000).subtract(offset)
+    lrb_src_df = lrb_src_df.loc[
+        (lrb_src_df['rel_time'] > lower_threshold) & (
+                lrb_src_df['rel_time'] < upper_threshold)]
+    lrb_avg = np.mean(lrb_src_df['value'])
     return lrb_src_df, lrb_avg
 
 
@@ -93,45 +110,43 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-9-1"
-    file_date_default = "2022_08_09"
-    file_date_adaptive = "2022_08_09"
+    experiment_date_id = "aug-18-1"
+    file_date_default = "2022_08_18"
+    file_date_adaptive = "2022_08_18"
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
     upper_time_threshold = 580
     lower_time_threshold = 80
-    plot_tp = True
+    plot_tp = False
     plot_latency = True
-    plot_cpu = False
-    plot_mem = False
-    plot_busy = True
-    plot_idle = True
-    plot_backpressure = True
-    plot_iq_len = True
-    plot_nw = True
+    plot_src_cpu_time = False
 
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
     has_adaptive_metrics = False
 
     default_offset = 0
+    default_id_str = "lrb_default"
 
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
     lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                       "lrb_default", str(24))
+                                       default_id_str, str(8))
     lrb_default_op_name_id_dict = get_op_name_id_mapping(lrb_default_tp_file)
+
+    sched_periods = [5]
+    parallelism_levels = [4, 8, 12, 16, 20, 24]
 
     if plot_tp:
         col_list = ["name", "time", "operator_name", "task_name", "subtask_index", "count", "rate"]
         lrb_avg_all_df = pd.DataFrame(columns=['Scheduling Policy', 'Parallelism', 'tp'])
-        for parallelism_level in range(8, 25, 8):
+        for parallelism_level in parallelism_levels:
             lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                    "lrb_default",
+                                                    default_id_str,
                                                     str(parallelism_level))
             lrb_default_src_df, lrb_default_avg = get_formatted_tput(lrb_default_num_out_file, col_list,
                                                                      lower_time_threshold, upper_time_threshold,
-                                                                     default_offset, "Default")
+                                                                     default_offset)
             lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Default", parallelism_level, lrb_default_avg]
             if has_replicating_only_metrics:
                 replicating_offset = 0
@@ -141,12 +156,12 @@ if __name__ == '__main__':
                 lrb_replicating_src_df, lrb_replicating_avg = get_formatted_tput(lrb_replicating_num_out_file, col_list,
                                                                                  lower_time_threshold,
                                                                                  upper_time_threshold,
-                                                                                 replicating_offset, "Replicating")
+                                                                                 replicating_offset)
                 lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Replicating", parallelism_level, lrb_replicating_avg]
 
             if has_scheduling_only_metrics:
                 scheduling_offset = 0
-                for sched_period in [1, 2, 5, 20, 50, 100, 200]:
+                for sched_period in sched_periods:
                     lrb_scheduling_num_out_file = get_filename(data_dir, experiment_date_id, metric_name,
                                                                file_date_default,
                                                                "lrb_scheduling", str(parallelism_level),
@@ -155,7 +170,7 @@ if __name__ == '__main__':
                                                                                    col_list,
                                                                                    lower_time_threshold,
                                                                                    upper_time_threshold,
-                                                                                   scheduling_offset, "Scheduling")
+                                                                                   scheduling_offset)
                     lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Scheduling-" + f"{sched_period:03d}", parallelism_level,
                                                                lrb_scheduling_avg]
 
@@ -166,7 +181,7 @@ if __name__ == '__main__':
                                                          str(parallelism_level))
                 lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_num_out_file, col_list,
                                                                            lower_time_threshold, upper_time_threshold,
-                                                                           adaptive_offset, "Adaptive")
+                                                                           adaptive_offset)
                 lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Adaptive", parallelism_level, lrb_adaptive_avg]
 
         print(lrb_avg_all_df.dtypes)
@@ -186,14 +201,14 @@ if __name__ == '__main__':
         col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'toll_win_1'
-        target_stat = 'p99'
+        target_stat = 'p95'
 
         print(lrb_default_op_name_id_dict)
 
         lrb_avg_latency_all_df = pd.DataFrame(columns=['Scheduling Policy', 'Parallelism', 'latency'])
-        for parallelism_level in range(8, 25, 8):
+        for parallelism_level in parallelism_levels:
             lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                    "lrb_default",
+                                                    default_id_str,
                                                     str(parallelism_level))
             target_op_id = lrb_default_op_name_id_dict[target_op_name]
             lrb_default_src_df, lrb_default_avg = get_formatted_latency(lrb_default_num_out_file, col_list,
@@ -206,24 +221,23 @@ if __name__ == '__main__':
                                                             file_date_default,
                                                             "lrb_replicating", str(parallelism_level))
                 lrb_replicating_src_df, lrb_replicating_avg = get_formatted_latency(lrb_replicating_num_out_file,
-                                                                                    col_list,
-                                                                                    lower_time_threshold,
+                                                                                    col_list, lower_time_threshold,
                                                                                     upper_time_threshold,
-                                                                                    replicating_offset, "Replicating")
+                                                                                    replicating_offset, target_op_id,
+                                                                                    target_stat)
                 lrb_avg_latency_all_df.loc[len(lrb_avg_latency_all_df)] = ["Replicating", parallelism_level,
                                                                            lrb_replicating_avg]
 
             if has_scheduling_only_metrics:
                 scheduling_offset = 0
-                for sched_period in [1, 2, 5, 20, 50, 100, 200]:
+                for sched_period in sched_periods:
                     lrb_scheduling_num_out_file = get_filename(data_dir, experiment_date_id, metric_name,
                                                                file_date_default,
                                                                "lrb_scheduling", str(parallelism_level),
                                                                str(sched_period))
                     target_op_id = lrb_default_op_name_id_dict[target_op_name]
                     lrb_scheduling_src_df, lrb_scheduling_avg = get_formatted_latency(lrb_scheduling_num_out_file,
-                                                                                      col_list,
-                                                                                      lower_time_threshold,
+                                                                                      col_list, lower_time_threshold,
                                                                                       upper_time_threshold,
                                                                                       scheduling_offset, target_op_id,
                                                                                       target_stat)
@@ -237,7 +251,7 @@ if __name__ == '__main__':
                                                          str(parallelism_level))
                 lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_tput(lrb_adaptive_num_out_file, col_list,
                                                                            lower_time_threshold, upper_time_threshold,
-                                                                           adaptive_offset, "Adaptive")
+                                                                           adaptive_offset)
                 lrb_avg_latency_all_df.loc[len(lrb_avg_latency_all_df)] = ["Adaptive", parallelism_level,
                                                                            lrb_adaptive_avg]
 
@@ -249,10 +263,75 @@ if __name__ == '__main__':
         ax = pivoted_lrb_avg_latency_all_df.plot.bar(rot=0)
         ax.ticklabel_format(style='plain', axis='y')
         ax.set_ylabel('Time (ms)')
-        ax.set_ylim(top=6000)
+        ax.set_ylim(top=2000)
         ax.legend()
         plt.title('LRB ' + target_stat + ' latency - 4 source replicas - ' + target_op_name)
         plt.tight_layout()
         plt.savefig(
             results_dir + "/latency_all_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
+        plt.show()
+
+    if plot_src_cpu_time:
+        col_list = ["name", "time", "task_name", "subtask_index", "value"]
+        metric_name = "taskmanager_job_task_cpuTime"
+        lrb_avg_all_df = pd.DataFrame(columns=['Scheduling Policy', 'Parallelism', 'tp'])
+        for parallelism_level in parallelism_levels:
+            lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                                    default_id_str, str(parallelism_level))
+            lrb_default_src_df, lrb_default_avg = get_formatted_value_for_task(lrb_default_num_out_file, col_list,
+                                                                               lower_time_threshold,
+                                                                               upper_time_threshold,
+                                                                               default_offset)
+            lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Default", parallelism_level, lrb_default_avg]
+            if has_replicating_only_metrics:
+                replicating_offset = 0
+                lrb_replicating_num_out_file = get_filename(data_dir, experiment_date_id, metric_name,
+                                                            file_date_default, "lrb_replicating",
+                                                            str(parallelism_level))
+                lrb_replicating_src_df, lrb_replicating_avg = get_formatted_value_for_task(lrb_replicating_num_out_file,
+                                                                                           col_list,
+                                                                                           lower_time_threshold,
+                                                                                           upper_time_threshold,
+                                                                                           replicating_offset)
+                lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Replicating", parallelism_level, lrb_replicating_avg]
+
+            if has_scheduling_only_metrics:
+                scheduling_offset = 0
+                for sched_period in sched_periods:
+                    lrb_scheduling_num_out_file = get_filename(data_dir, experiment_date_id, metric_name,
+                                                               file_date_default,
+                                                               "lrb_scheduling", str(parallelism_level),
+                                                               str(sched_period))
+                    lrb_scheduling_src_df, lrb_scheduling_avg = get_formatted_value_for_task(
+                        lrb_scheduling_num_out_file,
+                        col_list,
+                        lower_time_threshold,
+                        upper_time_threshold,
+                        scheduling_offset)
+                    lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Scheduling-" + f"{sched_period:03d}", parallelism_level,
+                                                               lrb_scheduling_avg]
+
+            if has_adaptive_metrics:
+                adaptive_offset = 0
+                lrb_adaptive_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
+                                                         "lrb_adaptive",
+                                                         str(parallelism_level))
+                lrb_adaptive_src_df, lrb_adaptive_avg = get_formatted_value_for_task(lrb_adaptive_num_out_file,
+                                                                                     col_list,
+                                                                                     lower_time_threshold,
+                                                                                     upper_time_threshold,
+                                                                                     adaptive_offset)
+                lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Adaptive", parallelism_level, lrb_adaptive_avg]
+
+        print(lrb_avg_all_df.dtypes)
+        pivoted_lrb_avg_all_df = lrb_avg_all_df.pivot(index='Parallelism', columns='Scheduling Policy', values='tp')
+        print(pivoted_lrb_avg_all_df)
+
+        ax = pivoted_lrb_avg_all_df.plot.bar(rot=0)
+        # ax.ticklabel_format(style='plain', axis='y')
+        ax.set_ylabel('ms')
+        ax.legend(loc="lower left")
+        plt.title('LRB CPU time - 4 source replicas')
+        plt.tight_layout()
+        plt.savefig(results_dir + "/cpu_time_all_" + experiment_date_id + ".png")
         plt.show()
