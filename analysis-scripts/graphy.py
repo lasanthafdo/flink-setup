@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 pd.set_option('display.max_columns', None)
+pd.set_option('display.width', 1000)
 
 
 def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
@@ -90,28 +91,47 @@ def get_op_name_id_mapping(lrb_tp_file):
     return op_name_id_dict
 
 
+def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dict):
+    lrb_all_latency_for_sched_mode = pd.read_csv(lrb_latency_file, usecols=column_list)
+    join_dict_df = pd.DataFrame(op_to_id_dict.items(), columns=['operator_name', 'operator_id'])
+    lrb_all_latency_for_sched_mode = pd.merge(lrb_all_latency_for_sched_mode, join_dict_df, on="operator_id")
+    lrb_all_latency_for_sched_mode = lrb_all_latency_for_sched_mode.groupby(['time', 'operator_name'])[
+        [target_stat]].mean().reset_index()
+    lrb_pivoted_latency_df = lrb_all_latency_for_sched_mode.pivot(index='time', columns='operator_name',
+                                                                  values=target_stat)
+    lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[
+        ['time', 'fil_1', 'tsw_1', 'prj_1', 'vehicle_win_1', 'speed_win_1', 'acc_win_1', 'toll_win_1',
+         'toll_acc_win_1', 'Sink: sink_1']]
+    lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
+        lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
+    # lrb_pivoted_latency_df.set_index('rel_time', inplace=True)
+    print(lrb_pivoted_latency_df)
+    return lrb_pivoted_latency_df
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-16-local-1"
-    file_date_default = "2022_08_16"
-    file_date_adaptive = "2022_08_16"
-    parallelism_level = "4"
+    experiment_date_id = "aug-18-1"
+    file_date_default = "2022_08_18"
+    file_date_adaptive = "2022_08_18"
+    parallelism_level = "12"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = "5"
 
     upper_time_threshold = 580
-    lower_time_threshold = 0
+    lower_time_threshold = 80
     plot_tp = True
     plot_latency = True
-    plot_cpu = True
-    plot_mem = True
-    plot_busy = True
-    plot_idle = True
-    plot_backpressure = True
-    plot_iq_len = True
-    plot_nw = True
+    plot_cpu = False
+    plot_mem = False
+    plot_busy = False
+    plot_idle = False
+    plot_backpressure = False
+    plot_iq_len = False
+    plot_nw = False
 
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
@@ -237,20 +257,31 @@ if __name__ == '__main__':
         col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'toll_win_1'
-        target_stat = 'p95'
+        target_stat = 'mean'
         print(lrb_default_op_name_id_dict)
         lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
                                                 default_id_str, parallelism_level)
         target_op_id = lrb_default_op_name_id_dict[target_op_name]
-        lrb_default_sink_latency_df, lrb_default_latency_avg = get_formatted_latency(lrb_default_latency_file, col_list,
-                                                                                     lower_time_threshold,
-                                                                                     upper_time_threshold,
-                                                                                     default_offset,
-                                                                                     target_op_id, target_stat)
-        print(lrb_default_sink_latency_df)
+        lrb_default_latency_df, lrb_default_latency_avg = get_formatted_latency(lrb_default_latency_file, col_list,
+                                                                                lower_time_threshold,
+                                                                                upper_time_threshold,
+                                                                                default_offset,
+                                                                                target_op_id, target_stat)
+
+        lrb_default_pivoted_latency_df = get_pivoted_latency(lrb_default_latency_file, col_list, target_stat,
+                                                             lrb_default_op_name_id_dict)
+        fig_def_all, ax_def_all = plt.subplots(figsize=(8, 6))
+        lrb_default_pivoted_latency_df.plot(x="rel_time", y=['prj_1', 'vehicle_win_1', 'toll_win_1', 'toll_acc_win_1',
+                                                             'Sink: sink_1'], ax=ax_def_all)
+        ax_def_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
+                       title="Default Latency (" + target_stat + ") - All Operators ")
+        plt.savefig(
+            results_dir + "/latency_default_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
+        plt.show()
+
         fig, ax = plt.subplots(figsize=(12, 6))
 
-        ax.plot(lrb_default_sink_latency_df["rel_time"], lrb_default_sink_latency_df[target_stat], label="LRB-Default")
+        ax.plot(lrb_default_latency_df["rel_time"], lrb_default_latency_df[target_stat], label="LRB-Default")
         plt.axhline(y=lrb_default_latency_avg, ls='--', color='c', label="LRB-Default-Avg")
         plt.text(100, lrb_default_latency_avg + 50,
                  'Avg. ' + target_stat + ' latency (ms) - Default = ' + f'{lrb_default_latency_avg:,.2f}')
@@ -277,6 +308,10 @@ if __name__ == '__main__':
             lrb_scheduling_sink_latency_df, lrb_scheduling_latency_avg = get_formatted_latency(
                 lrb_scheduling_latency_file, col_list, lower_time_threshold, upper_time_threshold, scheduling_offset,
                 target_op_id, target_stat)
+
+            lrb_scheduling_pivoted_latency_df = get_pivoted_latency(lrb_scheduling_latency_file, col_list, target_stat,
+                                                                    lrb_default_op_name_id_dict)
+
             ax.plot(lrb_scheduling_sink_latency_df["rel_time"], lrb_scheduling_sink_latency_df[target_stat],
                     label="LRB-Scheduling")
             plt.axhline(y=lrb_scheduling_latency_avg, ls='--', color='y', label="LRB-Scheduling-Avg")
@@ -309,6 +344,17 @@ if __name__ == '__main__':
         plt.savefig(
             results_dir + "/latency_" + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
+
+        if has_scheduling_only_metrics:
+            fig_sched_all, ax_sched_all = plt.subplots(figsize=(8, 6))
+            lrb_scheduling_pivoted_latency_df.plot(x="rel_time",
+                                                   y=['prj_1', 'vehicle_win_1', 'toll_win_1', 'toll_acc_win_1',
+                                                      'Sink: sink_1'], ax=ax_sched_all)
+            ax_sched_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
+                             title="Scheduling Latency (" + target_stat + ") - All Operators ")
+            plt.savefig(
+                results_dir + "/latency_scheduling_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
+            plt.show()
 
     if plot_cpu:
         lrb_default_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
@@ -713,7 +759,7 @@ if __name__ == '__main__':
         plot_title_base = "Network Receive Rate - "
         plot_filename_base = "nw_"
         group_by_col_name = "host"
-        nw_if = "wlp0s20f3"
+        nw_if = "enp4s0"
 
         lrb_default_nw_file = get_filename(data_dir, experiment_date_id,
                                            "taskmanager_System_Network_" + nw_if + "_ReceiveRate", file_date_default,
