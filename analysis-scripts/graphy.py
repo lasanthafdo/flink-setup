@@ -113,9 +113,9 @@ def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dic
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-18-1"
-    file_date_default = "2022_08_18"
-    file_date_adaptive = "2022_08_18"
+    experiment_date_id = "aug-20-1"
+    file_date_default = "2022_08_20"
+    file_date_adaptive = "2022_08_20"
     parallelism_level = "12"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
@@ -133,24 +133,29 @@ if __name__ == '__main__':
     plot_iq_len = False
     plot_nw = False
 
+    has_pseudo_default_metrics = False
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
     has_adaptive_metrics = False
 
     default_offset = 0
-    default_id_str = "lrb_default"
+
+    default_id_str = "lrb_pd"
+    default_sched_period="5"
 
     if plot_tp:
         col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
         metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
         lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default, default_id_str,
-                                           parallelism_level)
+                                           parallelism_level, default_sched_period)
         lrb_adaptive_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
                                             "lrb_adaptive", parallelism_level, scheduling_period)
         lrb_replicating_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
                                                "lrb_replicating", parallelism_level, scheduling_period)
         lrb_scheduling_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
                                               "lrb_scheduling", parallelism_level, scheduling_period)
+        lrb_pseudo_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_adaptive,
+                                                  "lrb_pd", parallelism_level, "3600000")
         lrb_default_src_tp_df, lrb_default_tp_avg = get_formatted_tput(lrb_default_tp_file, col_list,
                                                                        lower_time_threshold,
                                                                        upper_time_threshold,
@@ -167,6 +172,18 @@ if __name__ == '__main__':
         print("Other subtasks: " + str(other_task_indexes))
 
         lrb_default_op_name_id_dict = get_op_name_id_mapping(lrb_default_tp_file)
+
+        if has_pseudo_default_metrics:
+            pseudo_default_offset = 0
+            lrb_pseudo_default_src_df, lrb_pseudo_default_avg = get_formatted_tput(lrb_pseudo_default_tp_file, col_list,
+                                                                                   lower_time_threshold,
+                                                                                   upper_time_threshold,
+                                                                                   pseudo_default_offset)
+            lrb_pseudo_default_op_name_id_dict = get_op_name_id_mapping(lrb_pseudo_default_tp_file)
+        else:
+            lrb_pseudo_default_src_df = None
+            lrb_pseudo_default_avg = None
+            lrb_pseudo_default_op_name_id_dict = None
 
         if has_replicating_only_metrics:
             replicating_offset = 0
@@ -204,6 +221,8 @@ if __name__ == '__main__':
         fig, ax = plt.subplots(figsize=(12, 6))
 
         ax.plot(lrb_default_src_tp_df["rel_time"], lrb_default_src_tp_df["rate"], label="LRB-Default")
+        if has_pseudo_default_metrics:
+            ax.plot(lrb_pseudo_default_src_df["rel_time"], lrb_pseudo_default_src_df["rate"], label="LRB-PD")
         if has_replicating_only_metrics:
             ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["rate"], label="LRB-Replicating")
         if has_adaptive_metrics:
@@ -213,6 +232,12 @@ if __name__ == '__main__':
 
         plt.axhline(y=lrb_default_tp_avg, ls='--', color='c', label="LRB-Default-Avg")
         plt.text(100, lrb_default_tp_avg + 5000, 'Default Avg. TP = ' + f'{lrb_default_tp_avg:,.2f}')
+        if has_pseudo_default_metrics:
+            plt.axhline(y=lrb_pseudo_default_avg, ls='--', color='navy', label="LRB-PD-Avg")
+            plt.text(360, lrb_pseudo_default_avg + 5000, 'PD Avg. TP = ' + f'{lrb_pseudo_default_avg:,.2f}')
+        if has_scheduling_only_metrics:
+            plt.axhline(y=lrb_scheduling_avg, ls='--', color='y', label="LRB-Scheduling-Avg")
+            plt.text(360, lrb_scheduling_avg + 5000, 'Scheduling Avg. TP = ' + f'{lrb_scheduling_avg:,.2f}')
         if has_replicating_only_metrics:
             plt.axhline(y=lrb_replicating_avg, ls='--', color='m', label="LRB-Replicating-Avg")
             plt.text(200, lrb_replicating_avg + 5000, 'Replicating Avg. TP = ' + f'{lrb_replicating_avg:,.2f}')
@@ -234,6 +259,8 @@ if __name__ == '__main__':
 
         count_ax.plot(lrb_default_src_tp_df["rel_time"], lrb_default_src_tp_df["count"],
                       label="LRB-Default")
+        if has_pseudo_default_metrics:
+            count_ax.plot(lrb_pseudo_default_src_df["rel_time"], lrb_pseudo_default_src_df["count"], label="LRB-PD")
         if has_replicating_only_metrics:
             count_ax.plot(lrb_replicating_src_df["rel_time"], lrb_replicating_src_df["count"], label="LRB-Replicating")
         if has_adaptive_metrics:
@@ -258,9 +285,11 @@ if __name__ == '__main__':
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'toll_win_1'
         target_stat = 'mean'
+        all_latency_graph_y_top = 500
+
         print(lrb_default_op_name_id_dict)
         lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                default_id_str, parallelism_level)
+                                                default_id_str, parallelism_level, default_sched_period)
         target_op_id = lrb_default_op_name_id_dict[target_op_name]
         lrb_default_latency_df, lrb_default_latency_avg = get_formatted_latency(lrb_default_latency_file, col_list,
                                                                                 lower_time_threshold,
@@ -275,6 +304,7 @@ if __name__ == '__main__':
                                                              'Sink: sink_1'], ax=ax_def_all)
         ax_def_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                        title="Default Latency (" + target_stat + ") - All Operators ")
+        ax_def_all.set_ylim(top=all_latency_graph_y_top)
         plt.savefig(
             results_dir + "/latency_default_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
@@ -285,6 +315,27 @@ if __name__ == '__main__':
         plt.axhline(y=lrb_default_latency_avg, ls='--', color='c', label="LRB-Default-Avg")
         plt.text(100, lrb_default_latency_avg + 50,
                  'Avg. ' + target_stat + ' latency (ms) - Default = ' + f'{lrb_default_latency_avg:,.2f}')
+
+        if has_pseudo_default_metrics:
+            pseudo_default_offset = 0
+            lrb_pseudo_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name,
+                                                           file_date_adaptive,
+                                                           "lrb_pd", parallelism_level, "3600000")
+            target_op_id = lrb_pseudo_default_op_name_id_dict[target_op_name]
+            lrb_pseudo_default_sink_latency_df, lrb_pseudo_default_latency_avg = get_formatted_latency(
+                lrb_pseudo_default_latency_file, col_list, lower_time_threshold, upper_time_threshold,
+                pseudo_default_offset,
+                target_op_id, target_stat)
+
+            lrb_pseudo_default_pivoted_latency_df = get_pivoted_latency(lrb_pseudo_default_latency_file, col_list,
+                                                                        target_stat,
+                                                                        lrb_default_op_name_id_dict)
+
+            ax.plot(lrb_pseudo_default_sink_latency_df["rel_time"], lrb_pseudo_default_sink_latency_df[target_stat],
+                    label="LRB-PD")
+            plt.axhline(y=lrb_pseudo_default_latency_avg, ls='--', color='y', label="LRB-PD-Avg")
+            plt.text(360, lrb_pseudo_default_latency_avg - 50,
+                     'Avg. ' + target_stat + ' latency (ms) - PD = ' + f'{lrb_pseudo_default_latency_avg:,.2f}')
 
         if has_replicating_only_metrics:
             replicating_offset = 0
@@ -345,6 +396,17 @@ if __name__ == '__main__':
             results_dir + "/latency_" + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
 
+        if has_pseudo_default_metrics:
+            fig_pd_all, ax_pd_all = plt.subplots(figsize=(8, 6))
+            lrb_pseudo_default_pivoted_latency_df.plot(x="rel_time",
+                                                   y=['prj_1', 'vehicle_win_1', 'toll_win_1', 'toll_acc_win_1',
+                                                      'Sink: sink_1'], ax=ax_pd_all)
+            ax_pd_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
+                             title="PD Latency (" + target_stat + ") - All Operators ")
+            ax_pd_all.set_ylim(top=all_latency_graph_y_top)
+            plt.savefig(
+                results_dir + "/latency_pd_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
+            plt.show()
         if has_scheduling_only_metrics:
             fig_sched_all, ax_sched_all = plt.subplots(figsize=(8, 6))
             lrb_scheduling_pivoted_latency_df.plot(x="rel_time",
@@ -352,6 +414,7 @@ if __name__ == '__main__':
                                                       'Sink: sink_1'], ax=ax_sched_all)
             ax_sched_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                              title="Scheduling Latency (" + target_stat + ") - All Operators ")
+            ax_sched_all.set_ylim(top=all_latency_graph_y_top)
             plt.savefig(
                 results_dir + "/latency_scheduling_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
             plt.show()
