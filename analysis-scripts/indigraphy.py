@@ -114,9 +114,9 @@ def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dic
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-22-1"
-    file_date_default = "2022_08_22"
-    file_date_adaptive = "2022_08_22"
+    experiment_date_id = "aug-23-1"
+    file_date_default = "2022_08_23"
+    file_date_adaptive = "2022_08_23"
     parallelism_level = "12"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
     default_id_str = "lrb_default"
     default_sched_period = "5"
-    num_parts = "6"
+    num_parts = "12"
     default_sched_periods = ["1", "2", "3", "4", "5"]
 
     if plot_tp:
@@ -306,7 +306,7 @@ if __name__ == '__main__':
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'toll_win_1'
         target_stat = 'mean'
-        all_latency_graph_y_top = 500
+        all_latency_graph_y_top = 2000
 
         print(lrb_default_op_name_id_dict)
         lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
@@ -397,7 +397,7 @@ if __name__ == '__main__':
         # ax.set_ylim(bottom=0)
         ax.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                title="Latency (" + target_stat + ") - Operator: " + target_op_name + ", # Kafka partitions (same as # src replicas): " + num_parts)
-        ax.set_ylim(0, 1000)
+        ax.set_ylim(0, all_latency_graph_y_top)
         ax.tick_params(axis="x", rotation=0)
         ax.legend()
         plt.savefig(
