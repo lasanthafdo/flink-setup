@@ -114,16 +114,16 @@ def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dic
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-23-1"
-    file_date_default = "2022_08_23"
-    file_date_adaptive = "2022_08_23"
+    experiment_date_id = "sep-8-1"
+    file_date_default = "2022_09_08"
+    file_date_adaptive = "2022_09_08"
     parallelism_level = "12"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = "5"
 
     upper_time_threshold = 580
-    lower_time_threshold = 0
+    lower_time_threshold = 180
     plot_tp = True
     plot_latency = True
     plot_cpu = False
@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
     default_id_str = "lrb_default"
     default_sched_period = "5"
-    num_parts = "12"
+    num_parts = "6"
     default_sched_periods = ["1", "2", "3", "4", "5"]
 
     if plot_tp:

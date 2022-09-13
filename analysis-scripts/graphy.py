@@ -117,17 +117,17 @@ def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dic
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-29-1"
-    file_date_default = "2022_08_29"
-    file_date_adaptive = "2022_08_29"
+    experiment_date_id = "sep-8-1"
+    file_date_default = "2022_09_08"
+    file_date_adaptive = "2022_09_08"
     parallelism_level = "12"
-    num_parts = "1"
+    num_parts = "6"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = "5"
 
     upper_time_threshold = 600
-    lower_time_threshold = 0
+    lower_time_threshold = 180
     plot_tp = True
     plot_latency = True
     plot_cpu = True
@@ -140,13 +140,13 @@ if __name__ == '__main__':
 
     has_pseudo_default_metrics = False
     has_replicating_only_metrics = False
-    has_scheduling_only_metrics = True
+    has_scheduling_only_metrics = False
     has_adaptive_metrics = False
 
     default_offset = 0
 
-    default_id_str = "lrb_pd"
-    default_sched_period = "5"
+    default_id_str = "lrb_default"
+    default_sched_period = "2"
     pseudo_default_sched_period = "5"
 
     if plot_tp:
@@ -226,7 +226,8 @@ if __name__ == '__main__':
 
         fig, ax = plt.subplots(figsize=(12, 6))
 
-        ax.plot(lrb_default_src_tp_df["rel_time"], lrb_default_src_tp_df["rate"], label="LRB-Default")
+        ax.plot(lrb_default_src_tp_df["time"], lrb_default_src_tp_df["rate"], label="LRB-Default")
+        ax.ticklabel_format(useOffset=False)
         if has_pseudo_default_metrics:
             ax.plot(lrb_pseudo_default_src_df["rel_time"], lrb_pseudo_default_src_df["rate"], label="LRB-PD")
         if has_replicating_only_metrics:
@@ -290,7 +291,7 @@ if __name__ == '__main__':
         col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'toll_win_1'
-        target_stat = 'p95'
+        target_stat = 'mean'
         all_latency_graph_y_top = 500
 
         print(lrb_default_op_name_id_dict)
@@ -311,7 +312,7 @@ if __name__ == '__main__':
                                                              'Sink: sink_1'], ax=ax_def_all)
         ax_def_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                        title="Default Latency (" + target_stat + ") - All Operators ")
-        # ax_def_all.set_ylim(top=all_latency_graph_y_top)
+        ax_def_all.set_ylim(0, all_latency_graph_y_top)
         plt.savefig(
             results_dir + "/latency_default_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
@@ -425,7 +426,7 @@ if __name__ == '__main__':
                                                       'Sink: sink_1'], ax=ax_sched_all)
             ax_sched_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                              title="Scheduling Latency (" + target_stat + ") - All Operators ")
-            # ax_sched_all.set_ylim(top=all_latency_graph_y_top)
+            ax_sched_all.set_ylim(0, all_latency_graph_y_top)
             plt.savefig(
                 results_dir + "/latency_scheduling_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
             plt.show()
