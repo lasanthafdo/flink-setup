@@ -149,7 +149,7 @@ if __name__ == '__main__':
     has_dummy_metrics = False
     has_adaptive_metrics = False
 
-    default_offset = 100
+    default_offset = 80
 
     default_id_str = "lrb_default"
     default_sched_period = "0"

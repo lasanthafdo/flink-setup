@@ -134,7 +134,7 @@ if __name__ == '__main__':
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
-    upper_time_threshold = 300
+    upper_time_threshold = 580
     lower_time_threshold = 80
     plot_tp = True
     plot_latency = True
