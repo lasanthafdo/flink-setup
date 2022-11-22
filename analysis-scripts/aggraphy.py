@@ -128,9 +128,9 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "nov-11-1"
-    file_date_default = "2022_11_11"
-    file_date_adaptive = "2022_11_11"
+    experiment_date_id = "nov-18-1"
+    file_date_default = "2022_11_18"
+    file_date_adaptive = "2022_11_18"
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
@@ -138,26 +138,28 @@ if __name__ == '__main__':
     lower_time_threshold = 80
     plot_tp = True
     plot_latency = True
-    plot_src_cpu_time = False
-    plot_cpu_time_comparison = False
+    plot_src_cpu_time = True
+    plot_cpu_time_comparison = True
 
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
-    has_pseudo_default_metrics = True
+    has_pseudo_default_metrics = False
     has_adaptive_metrics = False
 
     default_offset = 0
-    default_sched_period = str(0)
-    default_id_str = "lrb_default"
-    num_parts = '6'
+    default_sched_period = str(50)
+    default_id_str = "lrb_pd"
+    num_parts = '2'
+
+    sched_periods = [50]
+    #parallelism_levels = [6, 12, 18, 24]
+    parallelism_levels = [2]
 
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
     lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default, default_id_str,
-                                       str(6), default_sched_period, num_parts)
+                                       str(parallelism_levels[0]), default_sched_period, num_parts)
     lrb_default_op_name_id_dict = get_op_name_id_mapping(lrb_default_tp_file)
 
-    sched_periods = [50]
-    parallelism_levels = [6, 12, 18, 24]
 
     if plot_tp:
         col_list = ["name", "time", "operator_name", "task_name", "subtask_index", "count", "rate"]
@@ -325,7 +327,7 @@ if __name__ == '__main__':
         lrb_avg_all_df = pd.DataFrame(columns=['Scheduling Policy', 'Parallelism', 'cpu_time'])
         for parallelism_level in parallelism_levels:
             lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                    default_id_str, str(parallelism_level), num_parts=num_parts)
+                                                    default_id_str, str(parallelism_level), default_sched_period, num_parts)
             lrb_default_src_df, lrb_default_avg = get_sum_value_for_task(lrb_default_num_out_file, col_list,
                                                                          lower_time_threshold,
                                                                          upper_time_threshold,
@@ -390,13 +392,13 @@ if __name__ == '__main__':
         lrb_avg_default_df = pd.DataFrame(columns=['Scheduling Policy', 'Parallelism', 'cpu_time'])
         for parallelism_level in parallelism_levels:
             lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
-                                                    default_id_str, str(parallelism_level), num_parts=num_parts)
+                                                    default_id_str, str(parallelism_level), default_sched_period, num_parts)
             for task_name in ["Source", "fil_1", "vehicle_win_1", "speed_win_1", "acc_win_1", "toll_win_1", "Sink"]:
                 lrb_default_src_df, lrb_default_avg = get_sum_value_for_task(lrb_default_num_out_file, col_list,
                                                                              lower_time_threshold,
                                                                              upper_time_threshold,
                                                                              default_offset, task_name)
-                lrb_avg_default_df.loc[len(lrb_avg_default_df)] = ["Default : " + task_name, parallelism_level,
+                lrb_avg_default_df.loc[len(lrb_avg_default_df)] = [task_name, parallelism_level,
                                                                    lrb_default_avg]
 
         print(lrb_avg_default_df.dtypes)
@@ -406,8 +408,9 @@ if __name__ == '__main__':
 
         ax = pivoted_lrb_avg_default_df.plot.bar(rot=0)
         # ax.ticklabel_format(style='plain', axis='y')
+        ax.set_ylim(0, 800000000000)
         ax.set_ylabel('ms')
-        ax.legend(loc="lower left")
+        ax.legend()
         plt.title('LRB CPU time - Default')
         plt.tight_layout()
         plt.savefig(results_dir + "/cpu_time_comp_default_" + experiment_date_id + ".png")
@@ -427,18 +430,18 @@ if __name__ == '__main__':
                         lower_time_threshold,
                         upper_time_threshold,
                         scheduling_offset, task_name)
-                    lrb_avg_sched_df.loc[len(lrb_avg_sched_df)] = ["Scheduling : " + task_name, parallelism_level,
+                    lrb_avg_sched_df.loc[len(lrb_avg_sched_df)] = [task_name, parallelism_level,
                                                                    lrb_scheduling_avg]
 
-        print(lrb_avg_sched_df.dtypes)
         pivoted_lrb_avg_sched_df = lrb_avg_sched_df.pivot(index='Parallelism', columns='Scheduling Policy',
                                                           values='cpu_time')
         print(pivoted_lrb_avg_sched_df)
 
         ax = pivoted_lrb_avg_sched_df.plot.bar(rot=0)
         # ax.ticklabel_format(style='plain', axis='y')
+        ax.set_ylim(0, 800000000000)
         ax.set_ylabel('ms')
-        ax.legend(loc="lower left")
+        ax.legend()
         plt.title('LRB CPU time - Scheduling')
         plt.tight_layout()
         plt.savefig(results_dir + "/cpu_time_comp_sched_" + experiment_date_id + ".png")

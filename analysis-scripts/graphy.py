@@ -117,16 +117,16 @@ def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dic
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "nov-11-1"
-    file_date_default = "2022_11_11"
-    file_date_adaptive = "2022_11_11"
-    parallelism_level = "6"
-    num_parts = "6"
+    experiment_date_id = "nov-18-4"
+    file_date_default = "2022_11_18"
+    file_date_adaptive = "2022_11_18"
+    parallelism_level = "2"
+    num_parts = "2"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = "50"
 
-    upper_time_threshold = 900
+    upper_time_threshold = 600
     lower_time_threshold = 0
     plot_tp = True
     plot_latency = True
@@ -315,7 +315,7 @@ if __name__ == '__main__':
             lrb_adaptive_avg = None
             lrb_adaptive_op_name_id_dict = None
 
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(8, 5))
 
         ax.plot(lrb_default_src_tp_df["rel_time"], lrb_default_src_tp_df["rate"], label="LRB-Default")
         ax.ticklabel_format(useOffset=False)
@@ -417,7 +417,7 @@ if __name__ == '__main__':
         metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         target_op_name = 'Sink: sink_1'
         target_stat = 'mean'
-        all_latency_graph_y_top = 500
+        all_latency_graph_y_top = 300
 
         print(lrb_default_op_name_id_dict)
         lrb_default_latency_file = get_filename(data_dir, experiment_date_id, metric_name, file_date_default,
@@ -432,7 +432,7 @@ if __name__ == '__main__':
         lrb_default_pivoted_latency_df = get_pivoted_latency(lrb_default_latency_file, col_list, target_stat,
                                                              lrb_default_op_name_id_dict, upper_time_threshold,
                                                              lower_time_threshold)
-        fig_def_all, ax_def_all = plt.subplots(figsize=(4, 3))
+        fig_def_all, ax_def_all = plt.subplots(figsize=(8, 6))
         lrb_default_pivoted_latency_df.plot(x="rel_time", y=['prj_1', 'vehicle_win_1', 'toll_win_1', 'toll_acc_win_1',
                                                              'Sink: sink_1'], ax=ax_def_all)
         ax_def_all.set(xlabel="Time (sec)", ylabel="Latency (ms)",
@@ -658,7 +658,7 @@ if __name__ == '__main__':
         ax.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                title="Latency (" + target_stat + ") - Operator: " + target_op_name)
         ax.tick_params(axis="x", rotation=0)
-        # ax.set_ylim(0, all_latency_graph_y_top)
+        ax.set_ylim(0, all_latency_graph_y_top)
         ax.legend()
         # plt.tight_layout()
         plt.savefig(
