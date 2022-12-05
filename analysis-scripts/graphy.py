@@ -128,9 +128,10 @@ def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dic
     lrb_pivoted_latency_df = lrb_all_latency_for_sched_mode.pivot(index='time', columns='operator_name',
                                                                   values=target_stat)
     lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
-    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[
-        ['time', 'fil_1', 'tsw_1', 'prj_1', 'vehicle_win_1', 'speed_win_1', 'acc_win_1', 'toll_win_1',
-         'toll_acc_win_1', 'Sink: sink_1']]
+    # col_order = ['time', 'fil_1', 'tsw_1', 'prj_1', 'vehicle_win_1', 'speed_win_1', 'acc_win_1', 'toll_win_1',
+    #              'toll_acc_win_1', 'Sink: sink_1']
+    col_order = ['time', 'fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1']
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[col_order]
     lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
         lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
     lrb_pivoted_latency_df = lrb_pivoted_latency_df.loc[
@@ -147,9 +148,10 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
                                                                   values=target_stat)
     lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
     print(lrb_pivoted_latency_df.columns)
-    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[
-        ['time', 'fil_1 -> tsw_1 -> prj_1', 'vehicle_win_1 -> Map', 'speed_win_1 -> Map', 'acc_win_1 -> Map',
-         'toll_win_1 -> Map', 'toll_acc_win_1', 'Sink: sink_1']]
+    # col_order = ['time', 'fil_1 -> tsw_1 -> prj_1', 'vehicle_win_1 -> Map', 'speed_win_1 -> Map', 'acc_win_1 -> Map',
+    #              'toll_win_1 -> Map', 'toll_acc_win_1', 'Sink: sink_1']
+    col_order = ['time', 'fil_1 -> tsw_1 -> prj_1', 'Sink: sink_1']
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[col_order]
     lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
         lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
     lrb_pivoted_latency_df = lrb_pivoted_latency_df.loc[
@@ -161,15 +163,15 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "nov-25-1"
-    file_date = "2022_11_25"
-    parallelism_level = "2"
-    num_parts = "2"
+    experiment_date_id = "dec-3-1"
+    file_date = "2022_12_03"
+    parallelism_level = "12"
+    num_parts = "12"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = "50"
 
-    upper_time_threshold = 600
+    upper_time_threshold = 1200
     lower_time_threshold = 0
     plot_tp = True
     plot_latency = True
@@ -181,7 +183,7 @@ if __name__ == '__main__':
     plot_iq_len = True
     plot_nw = True
 
-    has_pseudo_default_metrics = True
+    has_pseudo_default_metrics = False
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
     has_fcfsp_metrics = False
@@ -192,18 +194,18 @@ if __name__ == '__main__':
     has_dummy_metrics = False
     has_adaptive_metrics = False
 
-    default_offset = 200
+    skip_default = False
+    use_alt_metrics = False
 
-    default_id_str = "lrb_default"
-    default_sched_period = "0"
+    default_offset = 0
+
+    default_id_str = "lrb_scheduling"
+    default_sched_period = "50"
     pseudo_default_sched_period = "50"
-    lrb_scheduling_policies = ["lrb_default", "lrb_pd", "lrb_scheduling"]
-    lrb_offsets = {"lrb_default": 200, "lrb_pd": 100, "lrb_scheduling": 100}
+    lrb_scheduling_policies = ["lrb_scheduling"]
+    lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_scheduling": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling"}
     lrb_op_name_id_dicts = {}
-
-    skip_default = True
-    use_alt_metrics = True
 
     if plot_tp:
         flink_col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
@@ -236,6 +238,7 @@ if __name__ == '__main__':
                     upper_time_threshold,
                     lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else default_offset)
                 lrb_op_name_id_dicts[scheduling_policy] = get_op_name_id_mapping(lrb_file_names[scheduling_policy])
+                ax._get_lines.get_next_color()
             else:
                 lrb_file_names[scheduling_policy] = get_filename(data_dir, experiment_date_id, metric_name,
                                                                  file_date,
@@ -243,6 +246,7 @@ if __name__ == '__main__':
                                                                  parallelism_level,
                                                                  default_sched_period if scheduling_policy == "lrb_default" else scheduling_period,
                                                                  num_parts)
+
             if not skip_default or scheduling_policy != "lrb_default":
                 if use_alt_metrics:
                     lrb_src_tp_dfs[scheduling_policy], lrb_tp_avgs[scheduling_policy] = get_formatted_alt_tput(
@@ -268,7 +272,8 @@ if __name__ == '__main__':
                          lrb_labels[scheduling_policy] + ' Avg. TP = ' + f'{lrb_tp_avgs[scheduling_policy]:,.2f}')
 
         # ax.set_ylim(bottom=0)
-        ax.set(xlabel="Time (sec)", ylabel="Throughput (event/sec)", title="Throughput")
+        ax.set(xlabel="Time (sec)", ylabel="Throughput (event/sec)",
+               title=("Custom " if use_alt_metrics else "Flink ") + "Throughput")
         ax.tick_params(axis="x", rotation=0)
         ax.legend()
         plt.savefig(results_dir + "/throughput_" + (
@@ -291,16 +296,17 @@ if __name__ == '__main__':
             plt.savefig(results_dir + "/count_" + parallelism_level + "_" + experiment_date_id + ".png")
             plt.show()
 
-        lrb_default_df = pd.read_csv(lrb_file_names["lrb_default"], usecols=flink_col_list)
-        print(lrb_src_tp_dfs["lrb_default"].describe().apply(lambda s: s.apply('{0:.1f}'.format)))
-        src_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('Source:')][
-            'subtask_index'].unique()
-        other_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('tsw')][
-            'subtask_index'].unique()
-        src_task_indexes.sort()
-        other_task_indexes.sort()
-        print("Source subtasks: " + str(src_task_indexes))
-        print("Other subtasks: " + str(other_task_indexes))
+        if not use_alt_metrics:
+            lrb_default_df = pd.read_csv(lrb_file_names[default_id_str], usecols=flink_col_list)
+            print(lrb_src_tp_dfs[default_id_str].describe().apply(lambda s: s.apply('{0:.1f}'.format)))
+            src_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('Source:')][
+                'subtask_index'].unique()
+            other_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('tsw')][
+                'subtask_index'].unique()
+            src_task_indexes.sort()
+            other_task_indexes.sort()
+            print("Source subtasks: " + str(src_task_indexes))
+            print("Other subtasks: " + str(other_task_indexes))
 
     else:
         lrb_default_op_name_id_dict = None
@@ -331,8 +337,6 @@ if __name__ == '__main__':
         lrb_latency_avgs = {}
         lrb_latency_pivoted_dfs = {}
 
-        print(lrb_op_name_id_dicts["lrb_default"])
-
         for scheduling_policy in lrb_scheduling_policies:
             if not skip_default or scheduling_policy != "lrb_default":
                 lrb_latency_file_names[scheduling_policy] = get_filename(data_dir, experiment_date_id, metric_name,
@@ -354,7 +358,8 @@ if __name__ == '__main__':
                         upper_time_threshold,
                         lower_time_threshold)
                 else:
-                    target_op_id = lrb_op_name_id_dicts["lrb_default"][target_op_name]
+                    print(lrb_op_name_id_dicts[default_id_str])
+                    target_op_id = lrb_op_name_id_dicts[default_id_str][target_op_name]
                     lrb_latency_dfs[scheduling_policy], lrb_latency_avgs[scheduling_policy] = get_formatted_latency(
                         lrb_latency_file_names[scheduling_policy], col_list,
                         lower_time_threshold,
@@ -371,16 +376,13 @@ if __name__ == '__main__':
 
                 fig_all_ops, ax_all_ops = plt.subplots(figsize=(8, 6))
                 if use_alt_metrics:
-                    lrb_latency_pivoted_dfs[scheduling_policy].plot(x="rel_time",
-                                                                    y=['vehicle_win_1 -> Map', 'toll_win_1 -> Map',
-                                                                       'toll_acc_win_1',
-                                                                       'Sink: sink_1'], ax=ax_all_ops)
+                    # op_name_array = ['vehicle_win_1 -> Map', 'toll_win_1 -> Map', 'toll_acc_win_1', 'Sink: sink_1']
+                    op_name_array = ['Sink: sink_1']
                 else:
-                    lrb_latency_pivoted_dfs[scheduling_policy].plot(x="rel_time",
-                                                                    y=['prj_1', 'vehicle_win_1', 'toll_win_1',
-                                                                       'toll_acc_win_1',
-                                                                       'Sink: sink_1'], ax=ax_all_ops)
+                    # op_name_array = ['prj_1', 'vehicle_win_1', 'toll_win_1', 'toll_acc_win_1', 'Sink: sink_1']
+                    op_name_array = ['prj_1', 'Sink: sink_1']
 
+                lrb_latency_pivoted_dfs[scheduling_policy].plot(x="rel_time", y=op_name_array, ax=ax_all_ops)
                 ax_all_ops.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                                title=lrb_labels[scheduling_policy] + " Latency (" + target_stat + ") - All Operators ")
                 ax_all_ops.set_ylim(bottom=0)
@@ -392,18 +394,21 @@ if __name__ == '__main__':
         fig_lat, ax = plt.subplots(figsize=(8, 5))
 
         for scheduling_policy in lrb_scheduling_policies:
+            if skip_default and scheduling_policy == "lrb_default":
+                ax._get_lines.get_next_color()
             if not skip_default or scheduling_policy != "lrb_default":
                 ax.plot(lrb_latency_dfs[scheduling_policy]["rel_time"], lrb_latency_dfs[scheduling_policy][target_stat],
                         label=lrb_labels[scheduling_policy])
                 plt.axhline(y=lrb_latency_avgs[scheduling_policy], ls='--', color='c',
                             label=lrb_labels[scheduling_policy] + "-Avg")
-                offset = (list(lrb_latency_avgs).index(scheduling_policy) + 1) * 40
+                offset = (list(lrb_latency_avgs).index(scheduling_policy) + 1) * 20
                 plt.text(160, lrb_latency_avgs[scheduling_policy] - offset, target_stat + ' - ' + lrb_labels[
                     scheduling_policy] + ' = ' + f'{lrb_latency_avgs[scheduling_policy]:,.2f}')
 
         # ax.set_ylim(bottom=0)
         ax.set(xlabel="Time (sec)", ylabel="Latency (ms)",
-               title="Latency (" + target_stat + ") - Operator: " + target_op_name)
+               title=(
+                         "Custom " if use_alt_metrics else "Flink ") + "Latency (" + target_stat + ") - Operator: " + target_op_name)
         ax.tick_params(axis="x", rotation=0)
         # ax.set_ylim(0, all_latency_graph_y_top)
         ax.set_ylim(bottom=0)
@@ -949,4 +954,3 @@ if __name__ == '__main__':
         combined_df = combined_df.loc[
             (combined_df.index > lower_time_threshold) & (combined_df.index < upper_time_threshold)]
         plot_metric(combined_df, x_label, y_label, "Network Receive Rate", "sched_policy", "nw_rcv", experiment_date_id)
-
