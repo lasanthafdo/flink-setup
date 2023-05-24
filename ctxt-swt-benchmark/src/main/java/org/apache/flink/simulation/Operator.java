@@ -4,9 +4,9 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 
 public interface Operator {
-    Operator setInput(BlockingQueue<Event> inputQueue);
+    void setInput(BlockingQueue<Event> inputQueue);
 
-    Operator setOutput(BlockingQueue<Event> outputQueue);
+    void setOutput(BlockingQueue<Event> outputQueue);
 
     boolean isEnabled();
 
@@ -14,7 +14,15 @@ public interface Operator {
 
     void init();
 
+    void stop();
+
     String getOperatorName();
 
     Set<Subtask> getSubtasks();
+
+    boolean isSource();
+
+    boolean isSink();
+
+    boolean isInputQueueEmpty();
 }

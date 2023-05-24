@@ -10,7 +10,7 @@ pd.set_option('display.max_rows', 100)
 pd.set_option('display.width', 1000)
 
 # Read data from multiple files
-exp_date_id = "may-20-1"
+exp_date_id = "may-23-1"
 dir_path = "/home/m34ferna/flink-tests/data/perf/" + exp_date_id
 results_dir = "results/" + exp_date_id + "/perf/"
 os.makedirs(results_dir, exist_ok=True)

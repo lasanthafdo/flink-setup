@@ -13,12 +13,16 @@ public class Subtask implements Runnable {
 
     @Override
     public void run() {
-        while (owner.isEnabled()) {
-            try {
-                owner.processSingleEvent();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+        try {
+            while (owner.isEnabled()) {
+                try {
+                    owner.processSingleEvent();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

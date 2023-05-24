@@ -5,20 +5,29 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractOperator implements Operator {
     private boolean enabled = false;
+    private final boolean source;
+    private final boolean sink;
     private final UUID operatorID = UUID.randomUUID();
     protected final String operatorName;
     private final Integer parallelism;
-    private BlockingQueue<Event> inputQueue;
+    protected BlockingQueue<Event> inputQueue;
     protected BlockingQueue<Event> outputQueue;
     private final Set<Subtask> subtasks;
 
-    public AbstractOperator(String operatorName, int parallelism) {
+    public AbstractOperator(String operatorName, int parallelism, boolean source, boolean sink) {
         this.operatorName = operatorName;
         this.parallelism = parallelism;
         this.subtasks = new HashSet<>(parallelism);
+        this.source = source;
+        this.sink = sink;
+    }
+
+    public AbstractOperator(String operatorName, int parallelism) {
+        this(operatorName, parallelism, false, false);
     }
 
     @Override
@@ -31,23 +40,29 @@ public abstract class AbstractOperator implements Operator {
     }
 
     @Override
+    public void stop() {
+        enabled = false;
+    }
+
+    @Override
     public void processSingleEvent() throws InterruptedException {
-        Event currentEvent = inputQueue.take();
-        processEvent(currentEvent, outputQueue);
+        Event currentEvent = inputQueue.poll(1, TimeUnit.SECONDS);
+        if (currentEvent != null) {
+            processEvent(currentEvent, outputQueue);
+        }
     }
 
-    protected abstract void processEvent(Event inputEvent, BlockingQueue<Event> outputQueue);
+    protected abstract void processEvent(Event inputEvent, BlockingQueue<Event> outputQueue) throws
+        InterruptedException;
 
     @Override
-    public Operator setInput(BlockingQueue<Event> inputQueue) {
+    public void setInput(BlockingQueue<Event> inputQueue) {
         this.inputQueue = inputQueue;
-        return this;
     }
 
     @Override
-    public Operator setOutput(BlockingQueue<Event> outputQueue) {
+    public void setOutput(BlockingQueue<Event> outputQueue) {
         this.outputQueue = outputQueue;
-        return this;
     }
 
     @Override
@@ -77,5 +92,20 @@ public abstract class AbstractOperator implements Operator {
     @Override
     public Set<Subtask> getSubtasks() {
         return subtasks;
+    }
+
+    @Override
+    public boolean isSource() {
+        return source;
+    }
+
+    @Override
+    public boolean isSink() {
+        return sink;
+    }
+
+    @Override
+    public boolean isInputQueueEmpty() {
+        return inputQueue.isEmpty();
     }
 }

@@ -12,8 +12,8 @@ public class DefaultEventGenerator extends AbstractSourceOperator {
     }
 
     @Override
-    protected void processEvent(Event inputEvent, BlockingQueue<Event> outputQueue) {
-        new Event(System.currentTimeMillis(), rand.nextLong() / 7.123);
+    protected void processEvent(Event inputEvent, BlockingQueue<Event> outputQueue) throws InterruptedException {
+        outputQueue.put(new Event(System.currentTimeMillis(), rand.nextLong() / 7.123));
     }
 
 }
