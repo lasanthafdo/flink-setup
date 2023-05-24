@@ -1,0 +1,207 @@
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_bytes-consumed-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_bytes-consumed-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_bytes-consumed-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_bytes-consumed-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_commit-latency-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_commit-latency-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_commit-latency-max\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_commit-latency-max_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_commit-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_commit-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-0\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-0_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-1\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-1_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-10\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-10_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-11\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-11_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-2\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-2_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-3\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-3_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-4\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-4_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-5\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-5_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-6\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-6_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-7\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-7_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-8\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-8_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-9\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_committed_offsets_lrb-events-1-9_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_connection-close-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_connection-close-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_connection-close-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_connection-close-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_connection-count\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_connection-count_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_connection-creation-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_connection-creation-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_connection-creation-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_connection-creation-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_count\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_count_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-0\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-0_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-1\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-1_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-10\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-10_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-11\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-11_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-2\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-2_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-3\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-3_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-4\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-4_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-5\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-5_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-6\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-6_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-7\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-7_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-8\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-8_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-9\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_current_offsets_lrb-events-1-9_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_fetch-latency-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_fetch-latency-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_fetch-latency-max\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_fetch-latency-max_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_fetch-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_fetch-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_fetch-size-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_fetch-size-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_fetch-size-max\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_fetch-size-max_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_fetch-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_fetch-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_incoming-byte-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_incoming-byte-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_incoming-byte-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_incoming-byte-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_io-ratio\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_io-ratio_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_io-time-ns-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_io-time-ns-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_io-wait-ratio\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_io-wait-ratio_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_io-wait-time-ns-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_io-wait-time-ns-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_io-waittime-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_io-waittime-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_iotime-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_iotime-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_network-io-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_network-io-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_network-io-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_network-io-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_outgoing-byte-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_outgoing-byte-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_outgoing-byte-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_outgoing-byte-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_poll-idle-ratio-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_poll-idle-ratio-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_records-consumed-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_records-consumed-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_records-consumed-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_records-consumed-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_records-lag-max\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_records-lag-max_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_records-lead-min\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_records-lead-min_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_records-per-request-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_records-per-request-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_request-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_request-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_request-size-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_request-size-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_request-size-max\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_request-size-max_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_request-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_request-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_response-rate\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_response-rate_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_response-total\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_response-total_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_time-between-poll-avg\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_time-between-poll-avg_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_time-between-poll-max\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_time-between-poll-max_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_topic_partition_committedOffsets\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_topic_partition_committedOffsets_$2_`date -u +%Y_%m_%d`.csv
+
+$INFLUX_CMD -database 'flink' -execute "SELECT * FROM \"taskmanager_job_task_operator_KafkaConsumer_topic_partition_currentOffsets\" WHERE time > now() - $1m" \
+-format csv > taskmanager_job_task_operator_KafkaConsumer_topic_partition_currentOffsets_$2_`date -u +%Y_%m_%d`.csv
+
