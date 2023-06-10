@@ -10,7 +10,7 @@ pd.set_option('display.max_rows', 100)
 pd.set_option('display.width', 1000)
 
 # Read data from multiple files
-exp_date_id = "may-23-1"
+exp_date_id = "jun-9-3"
 dir_path = "/home/m34ferna/flink-tests/data/perf/" + exp_date_id
 results_dir = "results/" + exp_date_id + "/perf/"
 os.makedirs(results_dir, exist_ok=True)
@@ -94,7 +94,8 @@ for column in columns:
     plt.figure(figsize=(10, 6))
     for i, policy in enumerate(policies):
         policy_data = result[result['policy'] == policy].sort_values('task_name')
-        adjustment_factor = bar_width * math.ceil(len(policy_data) / 2) - bar_width / 2
+        # adjustment_factor = bar_width * math.ceil(len(policy_data) / 2) - bar_width / 2
+        adjustment_factor = 0
         x = [j - adjustment_factor + i * bar_width for j in range(len(policy_data))]
         plt.bar(x, policy_data[column], width=bar_width, label=policy)
 

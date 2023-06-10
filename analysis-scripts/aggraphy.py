@@ -128,9 +128,9 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "may-23-1"
-    file_date_default = "2023_05_23"
-    file_date_adaptive = "2023_05_23"
+    experiment_date_id = "jun-9-3"
+    file_date_default = "2023_06_10"
+    file_date_adaptive = "2023_06_10"
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
@@ -143,17 +143,17 @@ if __name__ == '__main__':
 
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
-    has_pseudo_default_metrics = True
+    has_pseudo_default_metrics = False
     has_adaptive_metrics = False
 
     default_offset = 0
-    default_sched_period = str(0)
+    default_sched_period = str(5)
     pd_sched_period = str(50)
-    default_id_str = "lrb_default"
+    default_id_str = "lrb_osdef"
     pd_id_str = "lrb_pd"
-    num_parts = '2'
+    num_parts = '1'
 
-    sched_periods = [10, 50, 200]
+    sched_periods = [5]
     # parallelism_levels = [6, 12, 18, 24]
     parallelism_levels = [2]
 
@@ -221,9 +221,8 @@ if __name__ == '__main__':
                                                                            adaptive_offset)
                 lrb_avg_all_df.loc[len(lrb_avg_all_df)] = ["Adaptive", parallelism_level, lrb_adaptive_avg]
 
-        # print(lrb_avg_all_df.dtypes)
         pivoted_lrb_avg_all_df = lrb_avg_all_df.pivot(index='Parallelism', columns='Scheduling Policy', values='tp')
-        # print(pivoted_lrb_avg_all_df)
+        print(pivoted_lrb_avg_all_df)
 
         ax = pivoted_lrb_avg_all_df.plot.bar(rot=0)
         ax.ticklabel_format(style='plain', axis='y')
@@ -305,10 +304,9 @@ if __name__ == '__main__':
                 lrb_avg_latency_all_df.loc[len(lrb_avg_latency_all_df)] = ["Adaptive", parallelism_level,
                                                                            lrb_adaptive_avg]
 
-        # print(lrb_avg_latency_all_df.dtypes)
         pivoted_lrb_avg_latency_all_df = lrb_avg_latency_all_df.pivot(index='Parallelism', columns='Scheduling Policy',
                                                                       values='latency')
-        # print(pivoted_lrb_avg_latency_all_df)
+        print(pivoted_lrb_avg_latency_all_df)
 
         ax = pivoted_lrb_avg_latency_all_df.plot.bar(rot=0)
         ax.ticklabel_format(style='plain', axis='y')
