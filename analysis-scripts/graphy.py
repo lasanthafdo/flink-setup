@@ -163,13 +163,13 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "may-15-1"
-    file_date = "2023_05_15"
-    parallelism_level = "12"
-    num_parts = "6"
+    experiment_date_id = "jun-30-1"
+    file_date = "2023_06_30"
+    parallelism_level = "6"
+    num_parts = "2"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
-    scheduling_period = "50"
+    scheduling_period = "5"
 
     upper_time_threshold = 900
     lower_time_threshold = 0
@@ -197,11 +197,12 @@ if __name__ == '__main__':
     skip_default = False
     use_alt_metrics = False
 
-    default_id_str = "lrb_default"
-    default_sched_period = "0"
-    lrb_scheduling_policies = ["lrb_default", "lrb_scheduling"]
-    lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_scheduling": -1}
-    lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling"}
+    default_id_str = "lrb_osdef"
+    default_sched_period = "5"
+    lrb_scheduling_policies = ["lrb_osdef", "lrb_scheduling"]
+    lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_scheduling": -1, "lrb_osdef": -1}
+    lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
+                  "lrb_osdef": "LRB-OS default"}
     lrb_op_name_id_dicts = {}
 
     if plot_tp:
