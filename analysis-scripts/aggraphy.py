@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 pd.set_option('display.max_columns', None)
-
+pd.options.display.float_format = '{:.2f}'.format
 
 def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
     print("Reading file : " + lrb_num_out_file)
@@ -128,8 +128,8 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "jun-30-1"
-    file_date = "2023_06_30"
+    experiment_date_id = "jul-4-1"
+    file_date = "2023_07_04"
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
@@ -143,20 +143,20 @@ if __name__ == '__main__':
     has_replicating_only_metrics = False
     has_scheduling_only_metrics = True
     has_bpscheduling_only_metrics = False
-    has_pseudo_default_metrics = False
+    has_pseudo_default_metrics = True
     has_adaptive_metrics = False
 
     default_offset = 100
     scheduling_offset = 100
 
     sched_period = 5
-    default_sched_period = str(sched_period)
+    default_sched_period = str(0)
     pd_sched_period = str(sched_period)
-    default_id_str = "lrb_osdef"
-    default_label_str = "1-OS_Default-LQ"
-    pd_id_str = "lrb_bposch"
-    pd_label_str = "2 - OS Default - Small Q"
-    sched_label_str = "2-Scheduling-LQ"
+    default_id_str = "lrb_default"
+    default_label_str = "1-Default-LQ"
+    pd_id_str = "lrb_osdef"
+    pd_label_str = "2-OS_Default-LQ"
+    sched_label_str = "3-Scheduling-LQ"
     num_parts = '2'
 
     sched_periods = [sched_period]

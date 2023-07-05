@@ -163,7 +163,7 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "jun-30-1"
+    experiment_date_id = "jun-30-4"
     file_date = "2023_06_30"
     parallelism_level = "6"
     num_parts = "2"
