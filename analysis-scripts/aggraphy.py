@@ -129,13 +129,13 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-1-1"
-    file_date = "2023_08_01"
+    experiment_date_id = "jul-28-1"
+    file_date = "2023_07_28"
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
-    upper_time_threshold = 580
-    lower_time_threshold = 80
+    upper_time_threshold = 1180
+    lower_time_threshold = 480
     plot_tp = True
     plot_latency = True
     plot_src_cpu_time = True
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     default_offset = 100
     scheduling_offset = 100
 
-    num_repeats = 5
+    num_repeats = 3
     sched_period = 5
     default_sched_period = str(sched_period)
     pd_sched_period = str(sched_period)
