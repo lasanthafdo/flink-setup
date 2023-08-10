@@ -3,10 +3,9 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
 
 pd.set_option('display.max_columns', None)
@@ -172,7 +171,7 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
     fig, ax = plt.subplots(figsize=(8, 5))
     for scheduling_policy in lrb_scheduling_policies:
         for iter_val in range(1, num_iters + 1):
-            iter = str(iter_val) + "_0_" if global_iter else "0_" + str(iter_val) + "_"
+            iter = str(iter_val) + "_1_" if global_iter else "0_" + str(iter_val) + "_"
             iter_policy_id = iter + scheduling_policy
             if skip_default and scheduling_policy == "lrb_default":
                 lrb_file_names[iter_policy_id] = get_filename(data_dir, experiment_date_id, metric_name,
@@ -214,7 +213,8 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
                         upper_time_threshold,
                         lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
                             "lrb_default"])
-                    lrb_metric_avgs_per_iter[iter.split("_")[1]] = lrb_metric_avgs[iter_policy_id]
+                    lrb_metric_avgs_per_iter[iter.split("_")[0] if global_iter else iter.split("_")[1]] = \
+                    lrb_metric_avgs[iter_policy_id]
                     lrb_op_name_id_dicts[iter_policy_id] = get_op_name_id_mapping(lrb_file_names[iter_policy_id])
                     ax.plot(lrb_metric_dfs[iter_policy_id]["rel_time"], lrb_metric_dfs[iter_policy_id][target_metric],
                             label=iter + lrb_labels[scheduling_policy])
@@ -245,8 +245,8 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-4-1"
-    file_date = "2023_08_04"
+    experiment_date_id = "aug-9-2"
+    file_date = "2023_08_09"
     parallelism_level = "1"
     num_parts = "1"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
@@ -313,7 +313,7 @@ if __name__ == '__main__':
 
             for scheduling_policy in lrb_scheduling_policies:
                 for iter_val in range(1, num_iters + 1):
-                    iter = str(iter_val) + "_0_" if global_iter else "0_" + str(iter_val) + "_"
+                    iter = str(iter_val) + "_1_" if global_iter else "0_" + str(iter_val) + "_"
                     iter_policy_id = iter + scheduling_policy
                     if not skip_default or scheduling_policy != "lrb_default":
                         count_ax.plot(lrb_src_tp_dfs[iter_policy_id]["rel_time"],
@@ -330,7 +330,7 @@ if __name__ == '__main__':
 
         if not use_alt_metrics:
             for iter_val in range(1, num_iters + 1):
-                iter = str(iter_val) + "_0_" if global_iter else "0_" + str(iter_val) + "_"
+                iter = str(iter_val) + "_1_" if global_iter else "0_" + str(iter_val) + "_"
                 iter_policy_id = iter + default_id_str
                 lrb_default_df = pd.read_csv(lrb_file_names[iter_policy_id], usecols=flink_col_list)
                 src_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('Source:')][
@@ -374,7 +374,7 @@ if __name__ == '__main__':
         for scheduling_policy in lrb_scheduling_policies:
             fig_all_ops, ax_all_ops = plt.subplots(figsize=(8, 6))
             for iter_val in range(1, num_iters + 1):
-                iter = str(iter_val) + "_0_" if global_iter else "0_" + str(iter_val) + "_"
+                iter = str(iter_val) + "_1_" if global_iter else "0_" + str(iter_val) + "_"
                 iter_policy_id = iter + scheduling_policy
                 if not skip_default or scheduling_policy != "lrb_default":
                     lrb_latency_file_names[iter_policy_id] = get_filename(data_dir, experiment_date_id, metric_name,
@@ -384,7 +384,7 @@ if __name__ == '__main__':
                                                                           num_parts, iter)
                     if use_alt_metrics:
                         lrb_latency_dfs[iter_policy_id], lrb_latency_avgs[
-                            iter.split("_")[1]] = get_formatted_alt_latency(
+                            iter.split("_")[0] if global_iter else iter.split("_")[1]] = get_formatted_alt_latency(
                             lrb_latency_file_names[iter_policy_id], col_list,
                             lower_time_threshold,
                             upper_time_threshold,
@@ -399,7 +399,8 @@ if __name__ == '__main__':
                     else:
                         print(lrb_op_name_id_dicts[iter + default_id_str])
                         target_op_id = lrb_op_name_id_dicts[iter + default_id_str][target_op_name]
-                        lrb_latency_dfs[iter_policy_id], lrb_latency_avgs[iter.split("_")[1]] = get_formatted_latency(
+                        lrb_latency_dfs[iter_policy_id], lrb_latency_avgs[
+                            iter.split("_")[0] if global_iter else iter.split("_")[1]] = get_formatted_latency(
                             lrb_latency_file_names[iter_policy_id], col_list,
                             lower_time_threshold,
                             upper_time_threshold,
@@ -416,7 +417,7 @@ if __name__ == '__main__':
                     print(lrb_latency_pivoted_dfs[iter_policy_id])
                     ax_all_ops.plot(lrb_latency_pivoted_dfs[iter_policy_id]["rel_time"],
                                     lrb_latency_pivoted_dfs[iter_policy_id]["Sink: sink_1"],
-                                    label="Sink - Iter: " + iter.split("_")[1])
+                                    label="Sink - Iter: " + iter.split("_")[0] if global_iter else iter.split("_")[1])
 
             ax_all_ops.set(xlabel="Time (sec)", ylabel="Latency (ms)",
                            title=lrb_labels[

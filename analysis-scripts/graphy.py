@@ -165,9 +165,9 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-3-1"
-    file_date = "2023_08_03"
-    parallelism_level = "3"
+    experiment_date_id = "aug-9-1"
+    file_date = "2023_08_09"
+    parallelism_level = "2"
     num_parts = "1"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
                   "lrb_osdef": "LRB-OS default"}
     lrb_op_name_id_dicts = {}
-    iter = "5_1_"
+    iter = "3_1_"
 
     if plot_tp:
         flink_col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
@@ -768,7 +768,7 @@ if __name__ == '__main__':
                                                            default_sched_period, num_parts, iter)
         backpressured_time_grouped_df = get_grouped_df(backpressured_time_col_list, lrb_default_backpressured_time_file)
         plot_metric(backpressured_time_grouped_df, x_label, y_label, plot_title_base + "Default",
-                    group_by_col_name, plot_filename_base + "default", experiment_date_id, iter, 500)
+                    group_by_col_name, plot_filename_base + "default", experiment_date_id, iter)
 
         if has_replicating_only_metrics:
             lrb_replicating_backpressured_time_file = get_filename(data_dir, experiment_date_id,
