@@ -1,13 +1,12 @@
 # This is a sample Python script.
 import math
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 import pandas as pd
+
+# Press Shift+F10 to execute it or replace it with your code.
+# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 pd.set_option('display.max_columns', None)
 pd.options.display.float_format = '{:.2f}'.format
@@ -129,12 +128,12 @@ def plot_metric(data_df, x_label, y_label, plot_title, group_by_col_name, plot_f
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "jul-28-1"
-    file_date = "2023_07_28"
+    experiment_date_id = "aug-15-1"
+    file_date = "2023_08_15"
     results_dir = "results/" + experiment_date_id + "/agg"
     os.makedirs(results_dir, exist_ok=True)
 
-    upper_time_threshold = 1180
+    upper_time_threshold = 1200
     lower_time_threshold = 480
     plot_tp = True
     plot_latency = True
@@ -147,10 +146,10 @@ if __name__ == '__main__':
     has_pseudo_default_metrics = False
     has_adaptive_metrics = False
 
-    default_offset = 100
-    scheduling_offset = 100
+    default_offset = 600
+    scheduling_offset = 600
 
-    num_repeats = 3
+    num_repeats = 5
     sched_period = 5
     default_sched_period = str(sched_period)
     pd_sched_period = str(sched_period)
@@ -160,10 +159,11 @@ if __name__ == '__main__':
     pd_label_str = "2-OS_Default-LQ"
     sched_label_str = "2-Scheduling-LQ"
     num_parts = '1'
+    iter_to_skip = [3]
 
     sched_periods = [sched_period]
     # parallelism_levels = [6, 12, 18, 24]
-    parallelism_levels = [3]
+    parallelism_levels = [1]
 
     metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
     lrb_default_tp_file = get_filename(data_dir, experiment_date_id, metric_name, file_date, default_id_str,
@@ -175,6 +175,7 @@ if __name__ == '__main__':
         lrb_avg_all_df = pd.DataFrame(columns=['Scheduling Policy', 'iter', 'Parallelism', 'tp'])
         for parallelism_level in parallelism_levels:
             for iter in range(1, num_repeats + 1):
+                if iter in iter_to_skip: continue
                 lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date,
                                                         default_id_str, str(parallelism_level), default_sched_period,
                                                         num_parts, str(iter))
@@ -278,6 +279,7 @@ if __name__ == '__main__':
         lrb_avg_latency_all_df = pd.DataFrame(columns=['Scheduling Policy', 'iter', 'Parallelism', 'latency'])
         for parallelism_level in parallelism_levels:
             for iter in range(1, num_repeats + 1):
+                if iter in iter_to_skip: continue
                 lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date,
                                                         default_id_str, str(parallelism_level), default_sched_period,
                                                         num_parts, str(iter))
@@ -390,6 +392,7 @@ if __name__ == '__main__':
         lrb_avg_all_df = pd.DataFrame(columns=['Scheduling Policy', 'iter', 'Parallelism', 'cpu_time'])
         for parallelism_level in parallelism_levels:
             for iter in range(1, num_repeats + 1):
+                if iter in iter_to_skip: continue
                 if has_pseudo_default_metrics:
                     lrb_default_num_out_file = get_filename(data_dir, experiment_date_id, metric_name, file_date,
                                                             pd_id_str,

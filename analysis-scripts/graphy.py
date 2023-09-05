@@ -165,10 +165,10 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "aug-9-1"
-    file_date = "2023_08_09"
-    parallelism_level = "2"
-    num_parts = "1"
+    experiment_date_id = "aug-31-1"
+    file_date = "2023_08_31"
+    parallelism_level = "6"
+    num_parts = "2"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = "5"
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
                   "lrb_osdef": "LRB-OS default"}
     lrb_op_name_id_dicts = {}
-    iter = "3_1_"
+    iter = "7_2_"
 
     if plot_tp:
         flink_col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
