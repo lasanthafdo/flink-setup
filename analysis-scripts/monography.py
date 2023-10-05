@@ -257,6 +257,7 @@ if __name__ == '__main__':
     parser.add_argument("-def", "--defaultid", default="lrb_osdef")
     parser.add_argument("-pol", "--policies")
     parser.add_argument("--host", default="tem104")
+    parser.add_argument("-scp", "--schedperiod", default="5")
     args = parser.parse_args()
     data_dir = "/home/m34ferna/flink-tests/data"
     experiment_date_id = args.expdate_id
@@ -265,10 +266,10 @@ if __name__ == '__main__':
     src_parallelism = args.src_parallelism
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
-    scheduling_period = "5"
+    scheduling_period = args.schedperiod
 
-    upper_time_threshold = 1100
-    lower_time_threshold = 400
+    upper_time_threshold = 300
+    lower_time_threshold = 0
     plot_tp = True
     plot_latency = True
     plot_cpu = True
@@ -297,7 +298,7 @@ if __name__ == '__main__':
     num_iters = args.numiters
     exp_host = args.host
     lrb_scheduling_policies = args.policies.split(",")
-    default_sched_period = "5"
+    default_sched_period = scheduling_period
     lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_schedidling": -1, "lrb_scheduling": -1, "lrb_bpscheduling": -1,
                    "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
