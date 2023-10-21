@@ -31,6 +31,10 @@ def get_iteration_id(iter, is_global_iter, scheduling_policy):
     return scheduling_policy + " - " + str(iter.split("_")[0] if is_global_iter else iter.split("_")[1])
 
 
+def get_par_it(parallelism_level, iter_val):
+    return "Parallel level " + parallelism_level + " iteration " + str(iter_val)
+
+
 def get_op_name_id_mapping(lrb_tp_file):
     op_name_id_mapping_df = pd.read_csv(
         lrb_tp_file, usecols=['operator_name', 'operator_id']).drop_duplicates()
@@ -68,12 +72,12 @@ def calc_plot_graphs_for_metric(metric_name, scheduling_policy, lrb_offsets, lrb
                 upper_time_threshold,
                 lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
                     "lrb_default"])
-            lrb_metric_avgs_per_iter[get_iteration_id(iter, is_global_iter, scheduling_policy)] = \
+            lrb_metric_avgs_per_iter[get_par_it(parallelism_level, iter_val)] = \
                 lrb_metric_avgs[iter_policy_id]
             lrb_op_name_id_dicts[iter_policy_id] = get_op_name_id_mapping(
                 lrb_file_names[iter_policy_id])
             ax.plot(lrb_metric_dfs[iter_policy_id]["rel_time"], lrb_metric_dfs[iter_policy_id][target_metric],
-                    label="Parallel level " + parallelism_level + " iteration " + str(iter_val))
+                    label=get_par_it(parallelism_level, iter_val))
 
         ax.set(xlabel=user_xlabel, ylabel=user_ylabel,
                title="Flink " + simple_metric_name)
@@ -87,13 +91,13 @@ def calc_plot_graphs_for_metric(metric_name, scheduling_policy, lrb_offsets, lrb
     for iter, tp_avg in lrb_metric_avgs_per_iter.items():
         ax_bar.bar(iter, tp_avg)
 
-    # ax_bar.set(xlabel="Iteration", ylabel=user_ylabel,
-    #            title="Flink " + simple_metric_name)
-    # ax_bar.tick_params(axis="x", rotation=90)
-    # plt.tight_layout()
-    # plt.savefig(results_dir + "/" + simple_metric_name.lower() + "_bar_" +
-    #             "flink_" + parallelism_level + "_" + experiment_date_id + ".png")
-    # plt.show()
+    ax_bar.set(xlabel="Iteration", ylabel=user_ylabel,
+               title="Flink " + simple_metric_name)
+    ax_bar.tick_params(axis="x", rotation=90)
+    plt.tight_layout()
+    plt.savefig(results_dir + "/" + simple_metric_name.lower() + "_bar_" +
+                "flink_" + parallelism_level + "_" + experiment_date_id + ".png")
+    plt.show()
 
     print("Metric avgs" + str(lrb_metric_avgs_per_iter))
     return lrb_file_names, lrb_metric_dfs, ax
