@@ -251,15 +251,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("expdate_id")
     parser.add_argument("filedate")
-    parser.add_argument("-p", "--parallelism", default=1)
-    parser.add_argument("-sp", "--src_parallelism", default=1)
+    parser.add_argument("-p", "--parallelism", default="1")
+    parser.add_argument("-sp", "--src_parallelism", default="1")
     parser.add_argument("-i", "--numiters", default=5, type=int)
     parser.add_argument("-def", "--defaultid", default="lrb_osdef")
-    parser.add_argument("-pol", "--policies")
+    parser.add_argument("-pol", "--policies", default="lrb_osdef")
     parser.add_argument("--host", default="tem104")
     parser.add_argument("-scp", "--schedperiod", default="5")
     args = parser.parse_args()
-    data_dir = "/home/m34ferna/flink-tests/data"
+    data_dir = "/Users/jayzhou/Desktop/ura/k/flink-data/data"
     experiment_date_id = args.expdate_id
     file_date = args.filedate
     parallelism_level = args.parallelism
