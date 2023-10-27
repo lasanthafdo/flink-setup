@@ -5,6 +5,9 @@ import pandas as pd
 import os
 import sys
 
+"""
+Based on monography. Change iter_policy_id to have different id for different parallelism levels.
+"""
 
 def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
     print("Reading file " + lrb_num_out_file + " filtering events between " + str(lower_threshold) + " and " + str(
@@ -249,7 +252,7 @@ if __name__ == '__main__':
             target_op_id = lrb_op_name_id_dicts[get_par_it(
                 parallelism_level, iter_val)][target_op_name]
             lrb_latency_dfs[iter_policy_id], lrb_latency_avgs[
-                get_iteration_id(iter, is_global_iter, scheduling_policy)] = get_formatted_latency(
+                get_par_it(parallelism_level, iter_val)] = get_formatted_latency(
                 lrb_latency_file_names[iter_policy_id], col_list,
                 lower_time_threshold,
                 upper_time_threshold,
@@ -277,20 +280,18 @@ if __name__ == '__main__':
         results_dir + "/latency_" + "flink_" + scheduling_policy + "_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
     plt.show()
 
-    # print("Latency avgs: " + str(lrb_latency_avgs))
-    # fig_lat, ax = plt.subplots(figsize=(8, 5))
-    # for iter, lat_avg in lrb_latency_avgs.items():
-    #     ax.bar(iter, lat_avg)
+    print("Latency avgs: " + str(lrb_latency_avgs))
+    fig_lat, ax = plt.subplots(figsize=(8, 5))
+    for iter, lat_avg in lrb_latency_avgs.items():
+        ax.bar(iter, lat_avg)
 
-    # ax.set(xlabel="Iteration", ylabel="Time (ms)",
-    #        title=(
-    #            "Custom " if use_alt_metrics else "Flink ") + "Latency (" + target_stat + ") - Operator: " + target_op_name)
-    # ax.tick_params(axis="x", rotation=90)
-    # # ax.set_ylim(0, all_latency_graph_y_top)
-    # ax.set_ylim(bottom=0)
-    # ax.legend()
-    # plt.tight_layout()
-    # plt.savefig(
-    #     results_dir + "/latency_bar_" + (
-    #         "custom_" if use_alt_metrics else "flink_") + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
-    # plt.show()
+    ax.set(xlabel="Iteration", ylabel="Time (ms)",
+           title="Flink " + "Latency (" + target_stat + ") - Operator: " + target_op_name)
+    ax.tick_params(axis="x", rotation=90)
+    # ax.set_ylim(0, all_latency_graph_y_top)
+    ax.set_ylim(bottom=0)
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(
+        results_dir + "/latency_bar_" + "flink_" + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
+    plt.show()
