@@ -3,13 +3,30 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
+
+LABEL_GAP_Y = 100000
+LRB_DEFAULT = "lrb_default"
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
+
+
+def get_formatted_metrics(target_attribs, lrb_metric_file, column_list, lower_threshold, upper_threshold, offset):
+    print("Reading file : " + lrb_metric_file)
+    lrb_df = pd.read_csv(lrb_metric_file, usecols=column_list)
+    lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
+        ['name'], axis=1).groupby(['time'])[target_attribs].sum().reset_index()
+    lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
+        1_000_000_000).subtract(offset)
+    lrb_src_df = lrb_src_df.loc[
+        (lrb_src_df['rel_time'] > lower_threshold) & (lrb_src_df['rel_time'] < upper_threshold)]
+    lrb_avg = np.mean(lrb_src_df[target_attribs[0]])
+    return lrb_src_df, lrb_avg
 
 
 def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
@@ -65,11 +82,6 @@ def get_formatted_alt_latency(lrb_latency_file, column_list, lower_threshold, up
     lrb_avg = np.mean(lrb_sink_latency_df[target_stat])
     return lrb_sink_latency_df, lrb_avg
 
-
-# def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy, par_level='12', sched_period='0',
-#                  num_parts='1', iter='0_1_'):
-#     return data_directory + "/" + exp_id + \
-#         "/" + metric_name + "_" + sched_policy + "_" + sched_period + "ms_" + par_level + "_" + num_parts + "parts_iter" + iter + file_date + ".csv"
 
 def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy, par_level='12', sched_period='0',
                  num_parts='1', iter='0_1_', exp_host='tem104'):
@@ -166,11 +178,75 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
     return lrb_pivoted_latency_df
 
 
+def plot_graphs_for(tgt_metric_lbls, tgt_attribs, tgt_sched_policies, input_file_names, metric_dfs, metric_avgs):
+    for policy in tgt_sched_policies:
+        if skip_default and policy == LRB_DEFAULT:
+            input_file_names[policy] = get_filename(data_dir, experiment_date_id, flink_metric_name,
+                                                    file_date,
+                                                    policy,
+                                                    parallelism_level,
+                                                    default_sched_period if policy == LRB_DEFAULT else scheduling_period,
+                                                    num_parts, iter, exp_host)
+            metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(
+                tgt_attribs,
+                input_file_names[policy], flink_col_list,
+                lower_time_threshold,
+                upper_time_threshold,
+                lrb_offsets[policy] if lrb_offsets[policy] >= 0 else lrb_offsets[
+                    LRB_DEFAULT])
+            lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
+            ax._get_lines.get_next_color()
+        else:
+            input_file_names[policy] = get_filename(data_dir, experiment_date_id, metric_name,
+                                                    file_date,
+                                                    policy,
+                                                    parallelism_level,
+                                                    default_sched_period if policy == LRB_DEFAULT else scheduling_period,
+                                                    num_parts, iter, exp_host)
+
+        if not skip_default or policy != LRB_DEFAULT:
+            if use_alt_metrics:
+                metric_dfs[policy], metric_avgs[policy] = get_formatted_alt_tput(
+                    input_file_names[policy], col_list,
+                    lower_time_threshold,
+                    upper_time_threshold,
+                    lrb_offsets[policy] if lrb_offsets[policy] >= 0 else lrb_offsets[
+                        LRB_DEFAULT])
+                ax.plot(metric_dfs[policy]["rel_time"], metric_dfs[policy]["value"],
+                        label=lrb_labels[policy])
+            else:
+                metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(
+                    tgt_attribs,
+                    input_file_names[policy], col_list,
+                    lower_time_threshold,
+                    upper_time_threshold,
+                    lrb_offsets[policy] if lrb_offsets[policy] >= 0 else lrb_offsets[LRB_DEFAULT])
+                lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
+                ax.plot(metric_dfs[policy]["rel_time"],
+                        metric_dfs[policy][tgt_attribs[0]],
+                        label=lrb_labels[policy])
+
+            plt.axhline(y=metric_avgs[policy], ls='--', label=lrb_labels[policy] + "-Avg")
+            offset = (list(metric_avgs).index(policy) + 1) * LABEL_GAP_Y
+            plt.text(100, metric_avgs[policy] - offset,
+                     "{} Avg. {} = {}".format(lrb_labels[policy], tgt_metric_lbls[1],
+                                              f'{metric_avgs[policy]:,.2f}'))
+    # ax.set_ylim(bottom=2500000)
+    ax.set(xlabel="Time (sec)", ylabel="{} (event/sec)".format(tgt_metric_lbls[0]),
+           title="{} {}".format("Custom " if use_alt_metrics else "Flink ", tgt_metric_lbls[0]))
+    ax.tick_params(axis="x", rotation=0)
+    ax.legend()
+    plt.savefig("{}/{}_{}_{}_{}_iter{}.png".format(results_dir, tgt_metric_lbls[0].lower(),
+                                                   "custom" if use_alt_metrics else "flink", parallelism_level,
+                                                   experiment_date_id, iter))
+    plt.show()
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "oct-5-1"
-    file_date = "2023_10_05"
+    experiment_date_id = "oct-26-1"
+    file_date = "2023_10_26"
     parallelism_level = "1"
     num_parts = "1"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
@@ -206,10 +282,10 @@ if __name__ == '__main__':
 
     default_id_str = "lrb_osdef"
     default_sched_period = "5"
-    lrb_scheduling_policies = ["lrb_osdef"]
-    lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_scheduling": -1, "lrb_osdef": -1}
+    lrb_scheduling_policies = ["lrb_osdef", "lrb_bpmitigation"]
+    lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_scheduling": -1, "lrb_osdef": -1, "lrb_bpmitigation": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
-                  "lrb_osdef": "LRB-OS default"}
+                  "lrb_osdef": "LRB-OS default", "lrb_bpmitigation": "LRB-BP Mitigation"}
     lrb_op_name_id_dicts = {}
     iter = "1_2_"
 
@@ -225,78 +301,23 @@ if __name__ == '__main__':
             metric_name = flink_metric_name
             col_list = flink_col_list
         lrb_file_names = {}
-        lrb_src_tp_dfs = {}
-        lrb_tp_avgs = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
         fig, ax = plt.subplots(figsize=(8, 5))
 
-        for scheduling_policy in lrb_scheduling_policies:
-            if skip_default and scheduling_policy == "lrb_default":
-                lrb_file_names[scheduling_policy] = get_filename(data_dir, experiment_date_id, flink_metric_name,
-                                                                 file_date,
-                                                                 scheduling_policy,
-                                                                 parallelism_level,
-                                                                 default_sched_period if scheduling_policy == "lrb_default" else scheduling_period,
-                                                                 num_parts, iter, exp_host)
-                lrb_src_tp_dfs[scheduling_policy], lrb_tp_avgs[scheduling_policy] = get_formatted_tput(
-                    lrb_file_names[scheduling_policy], flink_col_list,
-                    lower_time_threshold,
-                    upper_time_threshold,
-                    lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
-                        "lrb_default"])
-                lrb_op_name_id_dicts[scheduling_policy] = get_op_name_id_mapping(lrb_file_names[scheduling_policy])
-                ax._get_lines.get_next_color()
-            else:
-                lrb_file_names[scheduling_policy] = get_filename(data_dir, experiment_date_id, metric_name,
-                                                                 file_date,
-                                                                 scheduling_policy,
-                                                                 parallelism_level,
-                                                                 default_sched_period if scheduling_policy == "lrb_default" else scheduling_period,
-                                                                 num_parts, iter, exp_host)
-
-            if not skip_default or scheduling_policy != "lrb_default":
-                if use_alt_metrics:
-                    lrb_src_tp_dfs[scheduling_policy], lrb_tp_avgs[scheduling_policy] = get_formatted_alt_tput(
-                        lrb_file_names[scheduling_policy], col_list,
-                        lower_time_threshold,
-                        upper_time_threshold,
-                        lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
-                            "lrb_default"])
-                    ax.plot(lrb_src_tp_dfs[scheduling_policy]["rel_time"], lrb_src_tp_dfs[scheduling_policy]["value"],
-                            label=lrb_labels[scheduling_policy])
-                else:
-                    lrb_src_tp_dfs[scheduling_policy], lrb_tp_avgs[scheduling_policy] = get_formatted_tput(
-                        lrb_file_names[scheduling_policy], col_list,
-                        lower_time_threshold,
-                        upper_time_threshold,
-                        lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
-                            "lrb_default"])
-                    lrb_op_name_id_dicts[scheduling_policy] = get_op_name_id_mapping(lrb_file_names[scheduling_policy])
-                    ax.plot(lrb_src_tp_dfs[scheduling_policy]["rel_time"], lrb_src_tp_dfs[scheduling_policy]["rate"],
-                            label=lrb_labels[scheduling_policy])
-
-                plt.axhline(y=lrb_tp_avgs[scheduling_policy], ls='--', color='c',
-                            label=lrb_labels[scheduling_policy] + "-Avg")
-                offset = (list(lrb_tp_avgs).index(scheduling_policy) + 1) * 500000
-                plt.text(100, lrb_tp_avgs[scheduling_policy] - offset,
-                         lrb_labels[scheduling_policy] + ' Avg. TP = ' + f'{lrb_tp_avgs[scheduling_policy]:,.2f}')
-
-        # ax.set_ylim(bottom=2500000)
-        ax.set(xlabel="Time (sec)", ylabel="Throughput (event/sec)",
-               title=("Custom " if use_alt_metrics else "Flink ") + "Throughput")
-        ax.tick_params(axis="x", rotation=0)
-        ax.legend()
-        plt.savefig(results_dir + "/throughput_" + (
-            "custom_" if use_alt_metrics else "flink_") + parallelism_level + "_" + experiment_date_id + "_iter" + iter + ".png")
-        plt.show()
+        target_attributes_for_metric = ["rate", "count"]
+        metric_type_labels = ["Throughput", "TP"]
+        plot_graphs_for(metric_type_labels, target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names,
+                        lrb_metric_dfs, lrb_metric_avgs)
 
         if not use_alt_metrics:
             count_fig, count_ax = plt.subplots(figsize=(12, 6))
 
             for scheduling_policy in lrb_scheduling_policies:
                 if not skip_default or scheduling_policy != "lrb_default":
-                    count_ax.plot(lrb_src_tp_dfs[scheduling_policy]["rel_time"],
-                                  lrb_src_tp_dfs[scheduling_policy]["count"],
+                    count_ax.plot(lrb_metric_dfs[scheduling_policy]["rel_time"],
+                                  lrb_metric_dfs[scheduling_policy]["count"],
                                   label=lrb_labels[scheduling_policy])
 
             # count_ax.set_ylim(bottom=0)
@@ -309,7 +330,7 @@ if __name__ == '__main__':
 
         if not use_alt_metrics:
             lrb_default_df = pd.read_csv(lrb_file_names[default_id_str], usecols=flink_col_list)
-            print(lrb_src_tp_dfs[default_id_str].describe().apply(lambda s: s.apply('{0:.1f}'.format)))
+            print(lrb_metric_dfs[default_id_str].describe().apply(lambda s: s.apply('{0:.1f}'.format)))
             src_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('Source:')][
                 'subtask_index'].unique()
             other_task_indexes = lrb_default_df[lrb_default_df['operator_name'].str.contains('tsw')][

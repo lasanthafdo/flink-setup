@@ -18,14 +18,14 @@ def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_thr
     print("Reading file " + lrb_num_out_file + " filtering events between " + str(lower_threshold) + " and " + str(
         upper_threshold) + " seconds")
     lrb_df = pd.read_csv(lrb_num_out_file, usecols=column_list)
-    lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
+    lrb_target_op_df = lrb_df[lrb_df['operator_name'].str.contains('fil_1')].drop(
         ['name'], axis=1).groupby(['time'])[['rate', 'count']].sum().reset_index()
-    lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
+    lrb_target_op_df['rel_time'] = lrb_target_op_df['time'].subtract(lrb_target_op_df['time'].min()).div(
         1_000_000_000).subtract(offset)
-    lrb_src_df = lrb_src_df.loc[
-        (lrb_src_df['rel_time'] > lower_threshold) & (lrb_src_df['rel_time'] < upper_threshold)]
-    lrb_avg = np.mean(lrb_src_df['rate'])
-    return lrb_src_df, lrb_avg
+    lrb_target_op_df = lrb_target_op_df.loc[
+        (lrb_target_op_df['rel_time'] > lower_threshold) & (lrb_target_op_df['rel_time'] < upper_threshold)]
+    lrb_avg = np.mean(lrb_target_op_df['rate'])
+    return lrb_target_op_df, lrb_avg
 
 
 def get_formatted_alt_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
@@ -278,7 +278,7 @@ if __name__ == '__main__':
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = args.schedperiod
 
-    upper_time_threshold = 300
+    upper_time_threshold = 1200
     lower_time_threshold = 0
     plot_tp = True
     plot_latency = True
@@ -310,11 +310,12 @@ if __name__ == '__main__':
     lrb_scheduling_policies = args.policies.split(",")
     default_sched_period = scheduling_period
     lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_schedidling": -1, "lrb_scheduling": -1, "lrb_bpscheduling": -1,
-                   "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1}
+                   "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1, "lrb_bpmitigation": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
                   "lrb_schedidling": "LRB-Scheduling with blocking", "lrb_osdef": "LRB-OS default",
                   "lrb_bpscheduling": "LRB-Scheduling BP", "lrb_bposdef": "LRB-OS default BP",
-                  "lrb_bplqf": "LRB-Largest Q First BP", "lrb_lqf": "LRB-Largest Q First"}
+                  "lrb_bplqf": "LRB-Largest Q First BP", "lrb_lqf": "LRB-Largest Q First",
+                  "lrb_bpmitigation": "LRB-Backpressure Mitigation"}
     lrb_op_name_id_dicts = {}
     iter_to_skip = []
     local_iter_default = "2"
