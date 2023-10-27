@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
+import json
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -245,21 +246,30 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
 def get_iteration_id(iter, is_global_iter, scheduling_policy):
     return scheduling_policy + " - " + str(iter.split("_")[0] if is_global_iter else iter.split("_")[1])
 
+def load_config():
+    try:
+        with open("config.json", "r") as file:
+            return json.load(file)
+    except FileNotFoundError:
+        raise Exception("Configuration file 'config.json' not found. Please create it based on 'config.example.json'.")
+    except json.JSONDecodeError:
+        raise Exception("Error parsing 'config.json'. Please ensure it's correctly formatted.")
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("expdate_id")
     parser.add_argument("filedate")
-    parser.add_argument("-p", "--parallelism", default=1)
-    parser.add_argument("-sp", "--src_parallelism", default=1)
+    parser.add_argument("-p", "--parallelism", default="1")
+    parser.add_argument("-sp", "--src_parallelism", default="1")
     parser.add_argument("-i", "--numiters", default=5, type=int)
     parser.add_argument("-def", "--defaultid", default="lrb_osdef")
-    parser.add_argument("-pol", "--policies")
+    parser.add_argument("-pol", "--policies", default="lrb_osdef")
     parser.add_argument("--host", default="tem104")
     parser.add_argument("-scp", "--schedperiod", default="5")
     args = parser.parse_args()
-    data_dir = "/home/m34ferna/flink-tests/data"
+    config = load_config()
+    data_dir = config["data_dir"]
     experiment_date_id = args.expdate_id
     file_date = args.filedate
     parallelism_level = args.parallelism
