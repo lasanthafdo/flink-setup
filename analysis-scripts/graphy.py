@@ -9,6 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+METRIC_TYPE_BUSY_TIME = "busy"
+
+METRIC_TYPE_MEM = "mem"
+METRIC_TYPE_CPU = "cpu"
+METRIC_TYPE_LATENCY = "latency"
+METRIC_TYPE_TP = "tp"
+
 LABEL_GAP_Y = 100000
 LRB_DEFAULT = "lrb_default"
 
@@ -16,17 +23,28 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 
 
-def get_formatted_metrics(target_attribs, lrb_metric_file, column_list, lower_threshold, upper_threshold, offset):
+def get_formatted_metrics(target_attribs, lrb_metric_file, column_list, lower_threshold, upper_threshold, offset,
+                          target_operator, div_all_by_val):
     print("Reading file : " + lrb_metric_file)
     lrb_df = pd.read_csv(lrb_metric_file, usecols=column_list)
-    lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
-        ['name'], axis=1).groupby(['time'])[target_attribs].sum().reset_index()
-    lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
-        1_000_000_000).subtract(offset)
-    lrb_src_df = lrb_src_df.loc[
-        (lrb_src_df['rel_time'] > lower_threshold) & (lrb_src_df['rel_time'] < upper_threshold)]
-    lrb_avg = np.mean(lrb_src_df[target_attribs[0]])
-    return lrb_src_df, lrb_avg
+    if target_operator:
+        lrb_src_df = lrb_df[lrb_df['operator_name'].str.contains('Source:')].drop(
+            ['name'], axis=1).groupby(['time'])[target_attribs].sum().reset_index()
+        lrb_src_df['rel_time'] = lrb_src_df['time'].subtract(lrb_src_df['time'].min()).div(
+            1_000_000_000).subtract(offset)
+        lrb_src_df = lrb_src_df.loc[
+            (lrb_src_df['rel_time'] > lower_threshold) & (lrb_src_df['rel_time'] < upper_threshold)]
+        lrb_avg = np.mean(lrb_src_df[target_attribs[0]])
+        return lrb_src_df, lrb_avg
+    else:
+        lrb_df['rel_time'] = lrb_df['time'].subtract(lrb_df['time'].min()).div(
+            1_000_000_000).subtract(offset)
+        lrb_df = lrb_df.loc[
+            (lrb_df['rel_time'] > lower_threshold) & (lrb_df['rel_time'] < upper_threshold)]
+        if div_all_by_val:
+            lrb_df[target_attribs[0]] = lrb_df[target_attribs[0]].div(div_all_by_val)
+        lrb_avg = np.mean(lrb_df[target_attribs[0]])
+        return lrb_df, lrb_avg
 
 
 def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
@@ -83,6 +101,47 @@ def get_formatted_alt_latency(lrb_latency_file, column_list, lower_threshold, up
     return lrb_sink_latency_df, lrb_avg
 
 
+def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dict, upper_threshold, lower_threshold):
+    lrb_all_latency_for_sched_mode = pd.read_csv(lrb_latency_file, usecols=column_list)
+    join_dict_df = pd.DataFrame(op_to_id_dict.items(), columns=['operator_name', 'operator_id'])
+    lrb_all_latency_for_sched_mode = pd.merge(lrb_all_latency_for_sched_mode, join_dict_df, on="operator_id")
+    lrb_all_latency_for_sched_mode = lrb_all_latency_for_sched_mode.groupby(['time', 'operator_name'])[
+        [target_stat]].mean().reset_index()
+    lrb_pivoted_latency_df = lrb_all_latency_for_sched_mode.pivot(index='time', columns='operator_name',
+                                                                  values=target_stat)
+    lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
+    # col_order = ['time', 'fil_1', 'tsw_1', 'prj_1', 'vehicle_win_1', 'speed_win_1', 'acc_win_1', 'toll_win_1',
+    #              'toll_acc_win_1', 'Sink: sink_1']
+    col_order = ['time', 'fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1']
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[col_order]
+    lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
+        lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.loc[
+        (lrb_pivoted_latency_df['rel_time'] > lower_threshold) & (lrb_pivoted_latency_df['rel_time'] < upper_threshold)]
+
+    return lrb_pivoted_latency_df
+
+
+def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_threshold, lower_threshold):
+    lrb_all_latency_for_sched_mode = pd.read_csv(lrb_latency_file, usecols=column_list)
+    lrb_all_latency_for_sched_mode = lrb_all_latency_for_sched_mode.groupby(['time', 'task_name'])[
+        [target_stat]].mean().reset_index()
+    lrb_pivoted_latency_df = lrb_all_latency_for_sched_mode.pivot(index='time', columns='task_name',
+                                                                  values=target_stat)
+    lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
+    print(lrb_pivoted_latency_df.columns)
+    # col_order = ['time', 'fil_1 -> tsw_1 -> prj_1', 'vehicle_win_1 -> Map', 'speed_win_1 -> Map', 'acc_win_1 -> Map',
+    #              'toll_win_1 -> Map', 'toll_acc_win_1', 'Sink: sink_1']
+    col_order = ['time', 'fil_1 -> tsw_1 -> prj_1', 'Sink: sink_1']
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[col_order]
+    lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
+        lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
+    lrb_pivoted_latency_df = lrb_pivoted_latency_df.loc[
+        (lrb_pivoted_latency_df['rel_time'] > lower_threshold) & (lrb_pivoted_latency_df['rel_time'] < upper_threshold)]
+
+    return lrb_pivoted_latency_df
+
+
 def get_filename(data_directory, exp_id, metric_name, file_date, sched_policy, par_level='12', sched_period='0',
                  num_parts='1', iter='0_1_', exp_host='tem104'):
     return data_directory + "/" + exp_id + \
@@ -137,67 +196,28 @@ def get_op_name_id_mapping(lrb_tp_file):
     return op_name_id_dict
 
 
-def get_pivoted_latency(lrb_latency_file, column_list, target_stat, op_to_id_dict, upper_threshold, lower_threshold):
-    lrb_all_latency_for_sched_mode = pd.read_csv(lrb_latency_file, usecols=column_list)
-    join_dict_df = pd.DataFrame(op_to_id_dict.items(), columns=['operator_name', 'operator_id'])
-    lrb_all_latency_for_sched_mode = pd.merge(lrb_all_latency_for_sched_mode, join_dict_df, on="operator_id")
-    lrb_all_latency_for_sched_mode = lrb_all_latency_for_sched_mode.groupby(['time', 'operator_name'])[
-        [target_stat]].mean().reset_index()
-    lrb_pivoted_latency_df = lrb_all_latency_for_sched_mode.pivot(index='time', columns='operator_name',
-                                                                  values=target_stat)
-    lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
-    # col_order = ['time', 'fil_1', 'tsw_1', 'prj_1', 'vehicle_win_1', 'speed_win_1', 'acc_win_1', 'toll_win_1',
-    #              'toll_acc_win_1', 'Sink: sink_1']
-    col_order = ['time', 'fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1']
-    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[col_order]
-    lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
-        lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
-    lrb_pivoted_latency_df = lrb_pivoted_latency_df.loc[
-        (lrb_pivoted_latency_df['rel_time'] > lower_threshold) & (lrb_pivoted_latency_df['rel_time'] < upper_threshold)]
-
-    return lrb_pivoted_latency_df
-
-
-def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_threshold, lower_threshold):
-    lrb_all_latency_for_sched_mode = pd.read_csv(lrb_latency_file, usecols=column_list)
-    lrb_all_latency_for_sched_mode = lrb_all_latency_for_sched_mode.groupby(['time', 'task_name'])[
-        [target_stat]].mean().reset_index()
-    lrb_pivoted_latency_df = lrb_all_latency_for_sched_mode.pivot(index='time', columns='task_name',
-                                                                  values=target_stat)
-    lrb_pivoted_latency_df.columns = [''.join(col).strip() for col in lrb_pivoted_latency_df.columns]
-    print(lrb_pivoted_latency_df.columns)
-    # col_order = ['time', 'fil_1 -> tsw_1 -> prj_1', 'vehicle_win_1 -> Map', 'speed_win_1 -> Map', 'acc_win_1 -> Map',
-    #              'toll_win_1 -> Map', 'toll_acc_win_1', 'Sink: sink_1']
-    col_order = ['time', 'fil_1 -> tsw_1 -> prj_1', 'Sink: sink_1']
-    lrb_pivoted_latency_df = lrb_pivoted_latency_df.reset_index()[col_order]
-    lrb_pivoted_latency_df['rel_time'] = lrb_pivoted_latency_df['time'].subtract(
-        lrb_pivoted_latency_df['time'].min()).div(1_000_000_000)
-    lrb_pivoted_latency_df = lrb_pivoted_latency_df.loc[
-        (lrb_pivoted_latency_df['rel_time'] > lower_threshold) & (lrb_pivoted_latency_df['rel_time'] < upper_threshold)]
-
-    return lrb_pivoted_latency_df
-
-
-def plot_graphs_for(tgt_metric_lbls, tgt_attribs, tgt_sched_policies, input_file_names, metric_dfs, metric_avgs):
+def plot_graphs_for(tgt_metric_name, col_list, tgt_metric_lbls, tgt_attribs, tgt_sched_policies,
+                    input_file_names, metric_dfs, metric_avgs, tgt_op=None, div_all_by=None):
     for policy in tgt_sched_policies:
         if skip_default and policy == LRB_DEFAULT:
-            input_file_names[policy] = get_filename(data_dir, experiment_date_id, flink_metric_name,
+            input_file_names[policy] = get_filename(data_dir, experiment_date_id, tgt_metric_name,
                                                     file_date,
                                                     policy,
                                                     parallelism_level,
                                                     default_sched_period if policy == LRB_DEFAULT else scheduling_period,
                                                     num_parts, iter, exp_host)
-            metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(
-                tgt_attribs,
-                input_file_names[policy], flink_col_list,
-                lower_time_threshold,
-                upper_time_threshold,
-                lrb_offsets[policy] if lrb_offsets[policy] >= 0 else lrb_offsets[
-                    LRB_DEFAULT])
-            lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
+            metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(tgt_attribs, input_file_names[policy],
+                                                                            col_list, lower_time_threshold,
+                                                                            upper_time_threshold,
+                                                                            lrb_offsets[policy] if lrb_offsets[
+                                                                                                       policy] >= 0 else
+                                                                            lrb_offsets[
+                                                                                LRB_DEFAULT], tgt_op, div_all_by)
+            if tgt_op:
+                lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
             ax._get_lines.get_next_color()
         else:
-            input_file_names[policy] = get_filename(data_dir, experiment_date_id, metric_name,
+            input_file_names[policy] = get_filename(data_dir, experiment_date_id, tgt_metric_name,
                                                     file_date,
                                                     policy,
                                                     parallelism_level,
@@ -215,28 +235,31 @@ def plot_graphs_for(tgt_metric_lbls, tgt_attribs, tgt_sched_policies, input_file
                 ax.plot(metric_dfs[policy]["rel_time"], metric_dfs[policy]["value"],
                         label=lrb_labels[policy])
             else:
-                metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(
-                    tgt_attribs,
-                    input_file_names[policy], col_list,
-                    lower_time_threshold,
-                    upper_time_threshold,
-                    lrb_offsets[policy] if lrb_offsets[policy] >= 0 else lrb_offsets[LRB_DEFAULT])
-                lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
+                metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(tgt_attribs, input_file_names[policy],
+                                                                                col_list, lower_time_threshold,
+                                                                                upper_time_threshold,
+                                                                                lrb_offsets[policy] if lrb_offsets[
+                                                                                                           policy] >= 0 else
+                                                                                lrb_offsets[LRB_DEFAULT], tgt_op,
+                                                                                div_all_by)
+                if tgt_op:
+                    lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
                 ax.plot(metric_dfs[policy]["rel_time"],
                         metric_dfs[policy][tgt_attribs[0]],
                         label=lrb_labels[policy])
 
             plt.axhline(y=metric_avgs[policy], ls='--', label=lrb_labels[policy] + "-Avg")
-            offset = (list(metric_avgs).index(policy) + 1) * LABEL_GAP_Y
+            label_gap_y_axis = metric_dfs[list(metric_dfs.keys())[0]][tgt_attribs[0]].max() / 10
+            offset = (list(metric_avgs).index(policy) + 1) * label_gap_y_axis
             plt.text(100, metric_avgs[policy] - offset,
                      "{} Avg. {} = {}".format(lrb_labels[policy], tgt_metric_lbls[1],
                                               f'{metric_avgs[policy]:,.2f}'))
     # ax.set_ylim(bottom=2500000)
-    ax.set(xlabel="Time (sec)", ylabel="{} (event/sec)".format(tgt_metric_lbls[0]),
+    ax.set(xlabel="Time (sec)", ylabel="{} {}".format(tgt_metric_lbls[0], tgt_metric_lbls[2]),
            title="{} {}".format("Custom " if use_alt_metrics else "Flink ", tgt_metric_lbls[0]))
     ax.tick_params(axis="x", rotation=0)
     ax.legend()
-    plt.savefig("{}/{}_{}_{}_{}_iter{}.png".format(results_dir, tgt_metric_lbls[0].lower(),
+    plt.savefig("{}/{}_{}_{}_{}_iter{}.png".format(results_dir, tgt_metric_lbls[1].lower(),
                                                    "custom" if use_alt_metrics else "flink", parallelism_level,
                                                    experiment_date_id, iter))
     plt.show()
@@ -287,6 +310,8 @@ if __name__ == '__main__':
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
                   "lrb_osdef": "LRB-OS default", "lrb_bpmitigation": "LRB-BP Mitigation"}
     lrb_op_name_id_dicts = {}
+    col_lists = {}
+    metric_names = {}
     iter = "1_2_"
 
     if plot_tp:
@@ -295,11 +320,11 @@ if __name__ == '__main__':
         flink_metric_name = "taskmanager_job_task_operator_numRecordsOutPerSecond"
         alt_metric_name = "taskmanager_job_task_numRecordsInChannelPerSecond"
         if use_alt_metrics:
-            metric_name = alt_metric_name
-            col_list = alt_col_list
+            metric_names[METRIC_TYPE_TP] = alt_metric_name
+            col_lists[METRIC_TYPE_TP] = alt_col_list
         else:
-            metric_name = flink_metric_name
-            col_list = flink_col_list
+            metric_names[METRIC_TYPE_TP] = flink_metric_name
+            col_lists[METRIC_TYPE_TP] = flink_col_list
         lrb_file_names = {}
         lrb_metric_dfs = {}
         lrb_metric_avgs = {}
@@ -307,9 +332,10 @@ if __name__ == '__main__':
         fig, ax = plt.subplots(figsize=(8, 5))
 
         target_attributes_for_metric = ["rate", "count"]
-        metric_type_labels = ["Throughput", "TP"]
-        plot_graphs_for(metric_type_labels, target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names,
-                        lrb_metric_dfs, lrb_metric_avgs)
+        metric_type_labels = ["Throughput", "TP", "events/sec"]
+        plot_graphs_for(flink_metric_name, col_lists[METRIC_TYPE_TP], metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, "Source")
 
         if not use_alt_metrics:
             count_fig, count_ax = plt.subplots(figsize=(12, 6))
@@ -354,13 +380,15 @@ if __name__ == '__main__':
         lrb_adaptive_op_name_id_dict = None
 
     if plot_latency:
-        col_list = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95", "p99"]
-        metric_name = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
+        col_lists[METRIC_TYPE_LATENCY] = ["name", "time", "operator_id", "operator_subtask_index", "mean", "p50", "p95",
+                                          "p99"]
+        metric_names[
+            METRIC_TYPE_LATENCY] = "taskmanager_job_latency_source_id_operator_id_operator_subtask_index_latency"
         alt_col_list = ["name", "time", "subtask_index", "task_name", "mean", "p50", "p95", "p99"]
         alt_metric_name = "taskmanager_job_task_latencyHistogram"
         if use_alt_metrics:
-            metric_name = alt_metric_name
-            col_list = alt_col_list
+            metric_names[METRIC_TYPE_LATENCY] = alt_metric_name
+            col_lists[METRIC_TYPE_LATENCY] = alt_col_list
         target_op_name = 'Sink: sink_1'
         target_stat = 'mean'
         all_latency_graph_y_top = 300
@@ -371,21 +399,22 @@ if __name__ == '__main__':
 
         for scheduling_policy in lrb_scheduling_policies:
             if not skip_default or scheduling_policy != "lrb_default":
-                lrb_latency_file_names[scheduling_policy] = get_filename(data_dir, experiment_date_id, metric_name,
+                lrb_latency_file_names[scheduling_policy] = get_filename(data_dir, experiment_date_id,
+                                                                         metric_names[METRIC_TYPE_LATENCY],
                                                                          file_date,
                                                                          scheduling_policy, parallelism_level,
                                                                          default_sched_period if scheduling_policy == "lrb_default" else scheduling_period,
                                                                          num_parts, iter, exp_host)
                 if use_alt_metrics:
                     lrb_latency_dfs[scheduling_policy], lrb_latency_avgs[scheduling_policy] = get_formatted_alt_latency(
-                        lrb_latency_file_names[scheduling_policy], col_list,
+                        lrb_latency_file_names[scheduling_policy], col_lists[METRIC_TYPE_LATENCY],
                         lower_time_threshold,
                         upper_time_threshold,
                         lrb_offsets["lrb_default"],
                         target_op_name, target_stat)
                     lrb_latency_pivoted_dfs[scheduling_policy] = get_pivoted_alt_latency(
                         lrb_latency_file_names[scheduling_policy],
-                        col_list,
+                        col_lists[METRIC_TYPE_LATENCY],
                         target_stat,
                         upper_time_threshold,
                         lower_time_threshold)
@@ -393,14 +422,14 @@ if __name__ == '__main__':
                     print(lrb_op_name_id_dicts[default_id_str])
                     target_op_id = lrb_op_name_id_dicts[default_id_str][target_op_name]
                     lrb_latency_dfs[scheduling_policy], lrb_latency_avgs[scheduling_policy] = get_formatted_latency(
-                        lrb_latency_file_names[scheduling_policy], col_list,
+                        lrb_latency_file_names[scheduling_policy], col_lists[METRIC_TYPE_LATENCY],
                         lower_time_threshold,
                         upper_time_threshold,
                         lrb_offsets["lrb_default"],
                         target_op_id, target_stat)
                     lrb_latency_pivoted_dfs[scheduling_policy] = get_pivoted_latency(
                         lrb_latency_file_names[scheduling_policy],
-                        col_list,
+                        col_lists[METRIC_TYPE_LATENCY],
                         target_stat,
                         lrb_op_name_id_dicts[scheduling_policy],
                         upper_time_threshold,
@@ -452,160 +481,51 @@ if __name__ == '__main__':
         plt.show()
 
     if plot_cpu:
-        lrb_default_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
-                                                  file_date, default_id_str, parallelism_level,
-                                                  default_sched_period, num_parts, iter, exp_host)
-        if has_replicating_only_metrics:
-            lrb_replicating_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
-                                                          file_date, "lrb_replicating", parallelism_level,
-                                                          scheduling_period, num_parts, iter, exp_host)
-        else:
-            lrb_replicating_cpu_usage_file = None
+        print("Plotting CPU usage...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        if has_adaptive_metrics:
-            lrb_adaptive_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
-                                                       file_date, "lrb_adaptive", parallelism_level,
-                                                       scheduling_period, num_parts, iter, exp_host)
-        else:
-            lrb_adaptive_cpu_usage_file = None
+        fig, ax = plt.subplots(figsize=(8, 5))
 
-        if has_scheduling_only_metrics:
-            lrb_scheduling_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
-                                                         file_date, "lrb_scheduling", parallelism_level,
-                                                         scheduling_period, num_parts, iter, exp_host)
-        else:
-            lrb_scheduling_cpu_usage_file = None
-
-        cpu_usage_col_list = ["name", "time", "value"]
-        cpu_usage_df = pd.read_csv(lrb_default_cpu_usage_file, usecols=cpu_usage_col_list)
-        cpu_usage_df['rel_time'] = cpu_usage_df['time'].subtract(cpu_usage_df['time'].min()).div(
-            1_000_000_000).subtract(lrb_offsets["lrb_default"])
-        cpu_usage_df = cpu_usage_df.loc[cpu_usage_df['rel_time'] > 0]
-        cpu_usage_df.describe()
-
-        if has_replicating_only_metrics:
-            repl_cpu_usage_df = pd.read_csv(lrb_replicating_cpu_usage_file, usecols=cpu_usage_col_list)
-            repl_cpu_usage_df['rel_time'] = repl_cpu_usage_df['time'].subtract(repl_cpu_usage_df['time'].min()).div(
-                1_000_000_000)
-            # print(repl_cpu_usage_df)
-        else:
-            repl_cpu_usage_df = None
-
-        if has_adaptive_metrics:
-            adapt_cpu_usage_df = pd.read_csv(lrb_adaptive_cpu_usage_file, usecols=cpu_usage_col_list)
-            adapt_cpu_usage_df['rel_time'] = adapt_cpu_usage_df['time'].subtract(adapt_cpu_usage_df['time'].min()).div(
-                1_000_000_000)
-            # print(adapt_cpu_usage_df)
-        else:
-            adapt_cpu_usage_df = None
-
-        if has_scheduling_only_metrics:
-            sched_cpu_usage_df = pd.read_csv(lrb_scheduling_cpu_usage_file, usecols=cpu_usage_col_list)
-            sched_cpu_usage_df['rel_time'] = sched_cpu_usage_df['time'].subtract(sched_cpu_usage_df['time'].min()).div(
-                1_000_000_000)
-            # print(sched_cpu_usage_df)
-        else:
-            sched_cpu_usage_df = None
-
-        cpu_fig, cpu_ax = plt.subplots(figsize=(12, 8))
-
-        cpu_ax.plot(cpu_usage_df["rel_time"], cpu_usage_df["value"], label="LRB-Default")
-        if has_replicating_only_metrics:
-            cpu_ax.plot(repl_cpu_usage_df["rel_time"], repl_cpu_usage_df["value"], label="LRB-Replicating")
-        if has_adaptive_metrics:
-            cpu_ax.plot(adapt_cpu_usage_df["rel_time"], adapt_cpu_usage_df["value"], label="LRB-Adaptive")
-        if has_scheduling_only_metrics:
-            cpu_ax.plot(sched_cpu_usage_df["rel_time"], sched_cpu_usage_df["value"], label="LRB-Scheduling")
-
-        # cpu_ax.set_ylim(bottom=0)
-        cpu_ax.set(xlabel="Time (sec)", ylabel="CPU Usage (%)", title="CPU Usage")
-        cpu_ax.tick_params(axis="x", rotation=0)
-        cpu_ax.legend()
-        plt.savefig(results_dir + "/cpu_" + parallelism_level + "_" + experiment_date_id + "_iter" + iter + ".png")
-        plt.show()
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["CPU Usage", "CPU", "(%)"]
+        col_lists[METRIC_TYPE_CPU] = ["name", "time", "value"]
+        plot_graphs_for("taskmanager_System_CPU_Usage", col_lists[METRIC_TYPE_CPU], metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies,
+                        lrb_file_names, lrb_metric_dfs, lrb_metric_avgs)
 
     if plot_mem:
-        lrb_default_mem_usage_file = get_filename(data_dir, experiment_date_id,
-                                                  "taskmanager_Status_JVM_Memory_Heap_Used", file_date,
-                                                  default_id_str, parallelism_level, default_sched_period, num_parts,
-                                                  iter, exp_host)
-        if has_replicating_only_metrics:
-            lrb_replicating_mem_usage_file = get_filename(data_dir, experiment_date_id,
-                                                          "taskmanager_Status_JVM_Memory_Heap_Used", file_date,
-                                                          "lrb_replicating", parallelism_level, scheduling_period,
-                                                          num_parts, iter, exp_host)
-        else:
-            lrb_replicating_mem_usage_file = None
+        print("Plotting memory usage...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        if has_adaptive_metrics:
-            lrb_adaptive_mem_usage_file = get_filename(data_dir, experiment_date_id,
-                                                       "taskmanager_Status_JVM_Memory_Heap_Used", file_date,
-                                                       "lrb_adaptive", parallelism_level, scheduling_period, num_parts,
-                                                       iter, exp_host)
-        else:
-            lrb_adaptive_mem_usage_file = None
+        fig, ax = plt.subplots(figsize=(8, 5))
 
-        if has_scheduling_only_metrics:
-            lrb_scheduling_mem_usage_file = get_filename(data_dir, experiment_date_id,
-                                                         "taskmanager_Status_JVM_Memory_Heap_Used", file_date,
-                                                         "lrb_scheduling", parallelism_level, scheduling_period,
-                                                         num_parts, iter, exp_host)
-        else:
-            lrb_scheduling_mem_usage_file = None
-
-        mem_usage_col_list = ["name", "time", "value"]
-        mem_usage_df = pd.read_csv(lrb_default_mem_usage_file, usecols=mem_usage_col_list)
-        mem_usage_df['rel_time'] = mem_usage_df['time'].subtract(mem_usage_df['time'].min()).div(
-            1_000_000_000).subtract(lrb_offsets["lrb_default"])
-        mem_usage_df = mem_usage_df.loc[mem_usage_df['rel_time'] > 0]
-        mem_usage_df['value'] = mem_usage_df['value'].div(1048576)
-        # print(mem_usage_df)
-
-        if has_replicating_only_metrics:
-            repl_mem_usage_df = pd.read_csv(lrb_replicating_mem_usage_file, usecols=mem_usage_col_list)
-            repl_mem_usage_df['rel_time'] = repl_mem_usage_df['time'].subtract(repl_mem_usage_df['time'].min()).div(
-                1_000_000_000)
-            repl_mem_usage_df['value'] = repl_mem_usage_df['value'].div(1048576)
-            # print(repl_mem_usage_df)
-        else:
-            repl_mem_usage_df = None
-
-        if has_adaptive_metrics:
-            adapt_mem_usage_df = pd.read_csv(lrb_adaptive_mem_usage_file, usecols=mem_usage_col_list)
-            adapt_mem_usage_df['rel_time'] = adapt_mem_usage_df['time'].subtract(adapt_mem_usage_df['time'].min()).div(
-                1_000_000_000)
-            adapt_mem_usage_df['value'] = adapt_mem_usage_df['value'].div(1048576)
-            # print(adapt_mem_usage_df)
-        else:
-            adapt_mem_usage_df = None
-
-        if has_scheduling_only_metrics:
-            sched_mem_usage_df = pd.read_csv(lrb_scheduling_mem_usage_file, usecols=mem_usage_col_list)
-            sched_mem_usage_df['rel_time'] = sched_mem_usage_df['time'].subtract(sched_mem_usage_df['time'].min()).div(
-                1_000_000_000)
-            sched_mem_usage_df['value'] = sched_mem_usage_df['value'].div(1048576)
-            # print(sched_mem_usage_df)
-        else:
-            sched_mem_usage_df = None
-
-        mem_fig, mem_ax = plt.subplots(figsize=(12, 8))
-
-        mem_ax.plot(mem_usage_df["rel_time"], mem_usage_df["value"], label="LRB-Default")
-        if has_replicating_only_metrics:
-            mem_ax.plot(repl_mem_usage_df["rel_time"], repl_mem_usage_df["value"], label="LRB-Replicating")
-        if has_adaptive_metrics:
-            mem_ax.plot(adapt_mem_usage_df["rel_time"], adapt_mem_usage_df["value"], label="LRB-Adaptive")
-        if has_scheduling_only_metrics:
-            mem_ax.plot(sched_mem_usage_df["rel_time"], sched_mem_usage_df["value"], label="LRB-Scheduling")
-
-        # mem_ax.set_ylim(bottom=0)
-        mem_ax.set(xlabel="Time (sec)", ylabel="Memory Usage (MB)", title="Heap Memory")
-        mem_ax.tick_params(axis="x", rotation=0)
-        mem_ax.legend()
-        plt.savefig(results_dir + "/mem_" + parallelism_level + "_" + experiment_date_id + "_iter" + iter + ".png")
-        plt.show()
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["Heap Memory", "mem", "MB"]
+        col_lists[METRIC_TYPE_MEM] = ["name", "time", "value"]
+        plot_graphs_for("taskmanager_Status_JVM_Memory_Heap_Used", col_lists[METRIC_TYPE_MEM], metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, div_all_by=1048576)
 
     if plot_busy:
+        # print("Plotting busy time...")
+        # lrb_file_names = {}
+        # lrb_metric_dfs = {}
+        # lrb_metric_avgs = {}
+        #
+        # fig, ax = plt.subplots(figsize=(8, 5))
+        #
+        # target_attributes_for_metric = ["value"]
+        # metric_type_labels = ["Busy Time", "busy_time", "(ms/sec)"]
+        # col_lists[METRIC_TYPE_BUSY_TIME] = ["name", "task_name", "subtask_index", "time", "value"]
+        # plot_graphs_for("taskmanager_job_task_busyTimeMsPerSecond", col_lists[METRIC_TYPE_BUSY_TIME], metric_type_labels,
+        #                 target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+        #                 lrb_metric_avgs)
+        #
+        # exit(0)
         busy_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
         x_label = "Time (sec)"
         y_label = "ms/sec"
