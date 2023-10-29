@@ -9,6 +9,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+METRIC_TYPE_NW = "nw"
+
+METRIC_TYPE_IQ_LEN = "iq_len"
+
+METRIC_TYPE_BP_TIME = "bp"
+
+METRIC_TYPE_IDLE_TIME = "idle"
+
 METRIC_TYPE_BUSY_TIME = "busy"
 
 METRIC_TYPE_MEM = "mem"
@@ -24,7 +32,7 @@ pd.set_option('display.width', 1000)
 
 
 def get_formatted_metrics(target_attribs, lrb_metric_file, column_list, lower_threshold, upper_threshold, offset,
-                          target_operator, div_all_by_val):
+                          target_operator, div_all_by_val, group_by_cols):
     print("Reading file : " + lrb_metric_file)
     lrb_df = pd.read_csv(lrb_metric_file, usecols=column_list)
     if target_operator:
@@ -37,6 +45,8 @@ def get_formatted_metrics(target_attribs, lrb_metric_file, column_list, lower_th
         lrb_avg = np.mean(lrb_src_df[target_attribs[0]])
         return lrb_src_df, lrb_avg
     else:
+        if group_by_cols:
+            lrb_df = lrb_df.groupby(group_by_cols)[target_attribs[0]].mean().reset_index()
         lrb_df['rel_time'] = lrb_df['time'].subtract(lrb_df['time'].min()).div(
             1_000_000_000).subtract(offset)
         lrb_df = lrb_df.loc[
@@ -197,7 +207,19 @@ def get_op_name_id_mapping(lrb_tp_file):
 
 
 def plot_graphs_for(tgt_metric_name, col_list, tgt_metric_lbls, tgt_attribs, tgt_sched_policies,
-                    input_file_names, metric_dfs, metric_avgs, tgt_op=None, div_all_by=None):
+                    input_file_names, metric_dfs, metric_avgs, tgt_op=None, div_all_by=None, group_by_cols=None,
+                    filter_cols=None):
+    num_plots = 1
+    if filter_cols:
+        num_plots = len(filter_cols)
+
+    axes = None
+    ax_all = None
+    if num_plots > 1:
+        fig_all, axes = plt.subplots(nrows=num_plots, figsize=(8, 5 * num_plots))
+    else:
+        fig_all, ax_all = plt.subplots(figsize=(8, 5))
+
     for policy in tgt_sched_policies:
         if skip_default and policy == LRB_DEFAULT:
             input_file_names[policy] = get_filename(data_dir, experiment_date_id, tgt_metric_name,
@@ -212,10 +234,11 @@ def plot_graphs_for(tgt_metric_name, col_list, tgt_metric_lbls, tgt_attribs, tgt
                                                                             lrb_offsets[policy] if lrb_offsets[
                                                                                                        policy] >= 0 else
                                                                             lrb_offsets[
-                                                                                LRB_DEFAULT], tgt_op, div_all_by)
+                                                                                LRB_DEFAULT], tgt_op, div_all_by,
+                                                                            group_by_cols)
             if tgt_op:
                 lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
-            ax._get_lines.get_next_color()
+            ax_all._get_lines.get_next_color()
         else:
             input_file_names[policy] = get_filename(data_dir, experiment_date_id, tgt_metric_name,
                                                     file_date,
@@ -232,8 +255,8 @@ def plot_graphs_for(tgt_metric_name, col_list, tgt_metric_lbls, tgt_attribs, tgt
                     upper_time_threshold,
                     lrb_offsets[policy] if lrb_offsets[policy] >= 0 else lrb_offsets[
                         LRB_DEFAULT])
-                ax.plot(metric_dfs[policy]["rel_time"], metric_dfs[policy]["value"],
-                        label=lrb_labels[policy])
+                ax_all.plot(metric_dfs[policy]["rel_time"], metric_dfs[policy]["value"],
+                            label=lrb_labels[policy])
             else:
                 metric_dfs[policy], metric_avgs[policy] = get_formatted_metrics(tgt_attribs, input_file_names[policy],
                                                                                 col_list, lower_time_threshold,
@@ -241,24 +264,56 @@ def plot_graphs_for(tgt_metric_name, col_list, tgt_metric_lbls, tgt_attribs, tgt
                                                                                 lrb_offsets[policy] if lrb_offsets[
                                                                                                            policy] >= 0 else
                                                                                 lrb_offsets[LRB_DEFAULT], tgt_op,
-                                                                                div_all_by)
+                                                                                div_all_by, group_by_cols)
                 if tgt_op:
                     lrb_op_name_id_dicts[policy] = get_op_name_id_mapping(input_file_names[policy])
-                ax.plot(metric_dfs[policy]["rel_time"],
-                        metric_dfs[policy][tgt_attribs[0]],
-                        label=lrb_labels[policy])
+                if group_by_cols:
+                    if num_plots > 1:
+                        current_ax = 0
+                        for key, grp in metric_dfs[policy].groupby(group_by_cols[1]):
+                            if key in filter_cols:
+                                axes[current_ax].plot(grp['rel_time'], grp[tgt_attribs[0]],
+                                                      label="{} - {}".format(lrb_labels[policy], key))
+                                axes[current_ax].set_ylabel("{} {}".format(tgt_metric_lbls[0], tgt_metric_lbls[2]))
 
-            plt.axhline(y=metric_avgs[policy], ls='--', label=lrb_labels[policy] + "-Avg")
-            label_gap_y_axis = metric_dfs[list(metric_dfs.keys())[0]][tgt_attribs[0]].max() / 10
-            offset = (list(metric_avgs).index(policy) + 1) * label_gap_y_axis
-            plt.text(100, metric_avgs[policy] - offset,
-                     "{} Avg. {} = {}".format(lrb_labels[policy], tgt_metric_lbls[1],
-                                              f'{metric_avgs[policy]:,.2f}'))
-    # ax.set_ylim(bottom=2500000)
-    ax.set(xlabel="Time (sec)", ylabel="{} {}".format(tgt_metric_lbls[0], tgt_metric_lbls[2]),
-           title="{} {}".format("Custom " if use_alt_metrics else "Flink ", tgt_metric_lbls[0]))
-    ax.tick_params(axis="x", rotation=0)
-    ax.legend()
+                                axes[current_ax].axhline(y=np.mean(grp[tgt_attribs[0]]), ls='--',
+                                                         label="{} - {} Avg.".format(lrb_labels[policy], key))
+                                label_gap_y_axis = metric_dfs[list(metric_dfs.keys())[0]][tgt_attribs[0]].max() / 10
+                                text_offset = (list(metric_avgs).index(policy) + 1) * label_gap_y_axis
+                                axes[current_ax].text(100, np.mean(grp[tgt_attribs[0]]) - text_offset,
+                                                      "{} Avg. {} ({}) = {}".format(lrb_labels[policy],
+                                                                                    tgt_metric_lbls[1], key,
+                                                                                    f'{np.mean(grp[tgt_attribs[0]]):,.2f}'))
+                                axes[current_ax].legend()
+                                current_ax += 1
+                    else:
+                        for key, grp in metric_dfs[policy].groupby(group_by_cols[1]):
+                            ax_all.plot(grp['rel_time'], grp[tgt_attribs[0]],
+                                        label="{} - {}".format(lrb_labels[policy], key))
+                else:
+                    ax_all.plot(metric_dfs[policy]["rel_time"],
+                                metric_dfs[policy][tgt_attribs[0]],
+                                label=lrb_labels[policy])
+
+            if not num_plots > 1:
+                plt.axhline(y=metric_avgs[policy], ls='--', label=lrb_labels[policy] + "-Avg")
+                label_gap_y_axis = metric_dfs[list(metric_dfs.keys())[0]][tgt_attribs[0]].max() / 10
+                text_offset = (list(metric_avgs).index(policy) + 1) * label_gap_y_axis
+                plt.text(100, metric_avgs[policy] - text_offset,
+                         "{} Avg. {} = {}".format(lrb_labels[policy], tgt_metric_lbls[1],
+                                                  f'{metric_avgs[policy]:,.2f}'))
+
+    if num_plots > 1:
+        plt.xlabel("Time (sec)")
+        # plt.ylabel("{} {}".format(tgt_metric_lbls[0], tgt_metric_lbls[2]))
+        plt.title("{} {}".format("Custom " if use_alt_metrics else "Flink ", tgt_metric_lbls[0]))
+        plt.tick_params(axis="x", rotation=0)
+    else:
+        ax_all.set(xlabel="Time (sec)", ylabel="{} {}".format(tgt_metric_lbls[0], tgt_metric_lbls[2]),
+                   title="{} {}".format("Custom " if use_alt_metrics else "Flink ", tgt_metric_lbls[0]))
+        ax_all.tick_params(axis="x", rotation=0)
+        ax_all.legend()
+
     plt.savefig("{}/{}_{}_{}_{}_iter{}.png".format(results_dir, tgt_metric_lbls[1].lower(),
                                                    "custom" if use_alt_metrics else "flink", parallelism_level,
                                                    experiment_date_id, iter))
@@ -511,317 +566,84 @@ if __name__ == '__main__':
                         lrb_metric_avgs, div_all_by=1048576)
 
     if plot_busy:
-        # print("Plotting busy time...")
-        # lrb_file_names = {}
-        # lrb_metric_dfs = {}
-        # lrb_metric_avgs = {}
-        #
-        # fig, ax = plt.subplots(figsize=(8, 5))
-        #
-        # target_attributes_for_metric = ["value"]
-        # metric_type_labels = ["Busy Time", "busy_time", "(ms/sec)"]
-        # col_lists[METRIC_TYPE_BUSY_TIME] = ["name", "task_name", "subtask_index", "time", "value"]
-        # plot_graphs_for("taskmanager_job_task_busyTimeMsPerSecond", col_lists[METRIC_TYPE_BUSY_TIME], metric_type_labels,
-        #                 target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
-        #                 lrb_metric_avgs)
-        #
-        # exit(0)
-        busy_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
-        x_label = "Time (sec)"
-        y_label = "ms/sec"
-        plot_title_base = "Busy Time (ms/sec) - "
-        plot_filename_base = "busy_time_"
-        plot_filename_base_for_grouped_plots = "busy_time_grouped_"
-        group_by_col_name = "task_name"
-        group_by_col_name_for_grouped_plots = "task"
+        print("Plotting busy time...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        lrb_default_busy_time_file = get_filename(data_dir, experiment_date_id,
-                                                  "taskmanager_job_task_busyTimeMsPerSecond", file_date,
-                                                  default_id_str, parallelism_level, default_sched_period, num_parts,
-                                                  iter, exp_host)
-        busy_time_df = pd.read_csv(lrb_default_busy_time_file, usecols=busy_time_col_list)
-        busy_time_grouped_df = busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
-        busy_time_grouped_df['rel_time'] = busy_time_grouped_df['time'].subtract(
-            busy_time_grouped_df['time'].min()).div(1_000_000_000)
-        plot_metric(busy_time_grouped_df, x_label, y_label, plot_title_base + "Default",
-                    group_by_col_name, plot_filename_base + "default", experiment_date_id, iter)
-
-        if has_replicating_only_metrics:
-            lrb_replicating_busy_time_file = get_filename(data_dir, experiment_date_id,
-                                                          "taskmanager_job_task_busyTimeMsPerSecond",
-                                                          file_date, "lrb_replicating", parallelism_level,
-                                                          scheduling_period, num_parts, iter, exp_host)
-            repl_busy_time_df = pd.read_csv(lrb_replicating_busy_time_file, usecols=busy_time_col_list)
-            repl_busy_time_grouped_df = repl_busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
-            repl_busy_time_grouped_df['rel_time'] = repl_busy_time_grouped_df['time'].subtract(
-                repl_busy_time_grouped_df['time'].min()).div(1_000_000_000)
-            plot_metric(repl_busy_time_grouped_df, x_label, y_label, plot_title_base + "Replicating",
-                        group_by_col_name, plot_filename_base + "replicating", experiment_date_id, iter)
-
-        if has_adaptive_metrics:
-            lrb_adaptive_busy_time_file = get_filename(data_dir, experiment_date_id,
-                                                       "taskmanager_job_task_busyTimeMsPerSecond", file_date,
-                                                       "lrb_adaptive", parallelism_level, scheduling_period, num_parts,
-                                                       iter, exp_host)
-            adapt_busy_time_df = pd.read_csv(lrb_adaptive_busy_time_file, usecols=busy_time_col_list)
-            adapt_busy_time_grouped_df = adapt_busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
-            adapt_busy_time_grouped_df['rel_time'] = adapt_busy_time_grouped_df['time'].subtract(
-                adapt_busy_time_grouped_df['time'].min()).div(1_000_000_000)
-            plot_metric(adapt_busy_time_grouped_df, x_label, y_label, plot_title_base + "Adaptive",
-                        group_by_col_name, plot_filename_base + "adaptive", experiment_date_id, iter)
-
-        if has_scheduling_only_metrics:
-            lrb_scheduling_busy_time_file = get_filename(data_dir, experiment_date_id,
-                                                         "taskmanager_job_task_busyTimeMsPerSecond", file_date,
-                                                         "lrb_scheduling", parallelism_level, scheduling_period,
-                                                         num_parts, iter, exp_host)
-            sched_busy_time_df = pd.read_csv(lrb_scheduling_busy_time_file, usecols=busy_time_col_list)
-            sched_busy_time_grouped_df = sched_busy_time_df.groupby(['time', 'task_name'])['value'].mean().reset_index()
-            sched_busy_time_grouped_df['rel_time'] = sched_busy_time_grouped_df['time'].subtract(
-                sched_busy_time_grouped_df['time'].min()).div(1_000_000_000)
-            plot_metric(sched_busy_time_grouped_df, x_label, y_label, plot_title_base + "Scheduling",
-                        group_by_col_name, plot_filename_base + "scheduling", experiment_date_id, iter)
-
-        # Grouped analytics
-        busy_time_grouped_df.loc[
-            busy_time_grouped_df['task_name'] == 'fil_1 -> tsw_1 -> prj_1', 'task'] = 'TSW+'
-        busy_time_grouped_df.loc[
-            (busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
-                    busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
-                    busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
-        busy_time_grouped_df.loc[
-            (busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
-                    busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
-        default_busy_time_final = busy_time_grouped_df.groupby(['rel_time', 'task'])['value'].mean().reset_index()
-        # print(default_busy_time_final)
-
-        default_busy_time_final.set_index('rel_time', inplace=True)
-
-        plot_metric(default_busy_time_final, x_label, y_label, plot_title_base + "Default",
-                    group_by_col_name_for_grouped_plots, plot_filename_base_for_grouped_plots + "default",
-                    experiment_date_id, iter)
-
-        if has_replicating_only_metrics:
-            repl_busy_time_grouped_df.loc[
-                repl_busy_time_grouped_df[
-                    'task_name'] == 'fil_1 -> tsw_1 -> prj_1', 'task'] = 'TSW+'
-            repl_busy_time_grouped_df.loc[
-                (repl_busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
-                        repl_busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
-                        repl_busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
-            repl_busy_time_grouped_df.loc[
-                (repl_busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
-                        repl_busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
-            repl_busy_time_final = repl_busy_time_grouped_df.groupby(['rel_time', 'task'])['value'].mean().reset_index()
-            repl_busy_time_final.set_index('rel_time', inplace=True)
-
-            plot_metric(repl_busy_time_final, x_label, y_label, plot_title_base + "Replicating",
-                        group_by_col_name_for_grouped_plots, plot_filename_base_for_grouped_plots + "replicating",
-                        experiment_date_id, iter)
-
-        if has_adaptive_metrics:
-            adapt_busy_time_grouped_df.loc[
-                adapt_busy_time_grouped_df[
-                    'task_name'] == 'fil_1 -> tsw_1 -> prj_1', 'task'] = 'TSW+'
-            adapt_busy_time_grouped_df.loc[
-                (adapt_busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
-                        adapt_busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
-                        adapt_busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
-            adapt_busy_time_grouped_df.loc[
-                (adapt_busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
-                        adapt_busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
-            adapt_busy_time_final = adapt_busy_time_grouped_df.groupby(['rel_time', 'task'])[
-                'value'].mean().reset_index()
-            adapt_busy_time_final.set_index('rel_time', inplace=True)
-
-            plot_metric(adapt_busy_time_final, x_label, y_label, plot_title_base + "Adaptive",
-                        group_by_col_name_for_grouped_plots, plot_filename_base_for_grouped_plots + "adaptive",
-                        experiment_date_id, iter)
-
-        if has_scheduling_only_metrics:
-            sched_busy_time_grouped_df.loc[
-                sched_busy_time_grouped_df[
-                    'task_name'] == 'fil_1 -> tsw_1 -> prj_1', 'task'] = 'TSW+'
-            sched_busy_time_grouped_df.loc[
-                (sched_busy_time_grouped_df['task_name'] == 'speed_win_1 -> Map') | (
-                        sched_busy_time_grouped_df['task_name'] == 'acc_win_1 -> Map') | (
-                        sched_busy_time_grouped_df['task_name'] == 'vehicle_win_1 -> Map'), 'task'] = 'Upstream Windows'
-            sched_busy_time_grouped_df.loc[
-                (sched_busy_time_grouped_df['task_name'] == 'toll_acc_win_1 -> Sink: sink_1') | (
-                        sched_busy_time_grouped_df['task_name'] == 'toll_win_1 -> Map'), 'task'] = 'Downstream Windows'
-            sched_busy_time_final = sched_busy_time_grouped_df.groupby(['rel_time', 'task'])[
-                'value'].mean().reset_index()
-            sched_busy_time_final.set_index('rel_time', inplace=True)
-
-            plot_metric(sched_busy_time_final, x_label, y_label, plot_title_base + "Scheduling",
-                        group_by_col_name_for_grouped_plots, plot_filename_base_for_grouped_plots + "scheduling",
-                        experiment_date_id, iter)
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["Busy Time", "busy_time", "(ms/sec)"]
+        col_lists[METRIC_TYPE_BUSY_TIME] = ["name", "task_name", "subtask_index", "time", "value"]
+        group_by_col_names = ["time", "task_name"]
+        plot_graphs_for("taskmanager_job_task_busyTimeMsPerSecond", col_lists[METRIC_TYPE_BUSY_TIME],
+                        metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, group_by_cols=group_by_col_names,
+                        filter_cols=['fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1'])
 
     if plot_idle:
-        idle_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
-        x_label = "Time (sec)"
-        y_label = "ms/sec"
-        plot_title_base = "Idle Time (ms/sec) - "
-        plot_filename_base = "idle_time_"
-        group_by_col_name = "task_name"
+        print("Plotting idle time...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        lrb_default_idle_time_file = get_filename(data_dir, experiment_date_id,
-                                                  "taskmanager_job_task_idleTimeMsPerSecond", file_date,
-                                                  default_id_str, parallelism_level, default_sched_period, num_parts,
-                                                  iter, exp_host)
-        idle_time_grouped_df = get_grouped_df(idle_time_col_list, lrb_default_idle_time_file)
-        plot_metric(idle_time_grouped_df, x_label, y_label, plot_title_base + "Default",
-                    group_by_col_name, plot_filename_base + "default", experiment_date_id, iter)
-
-        if has_replicating_only_metrics:
-            lrb_replicating_idle_time_file = get_filename(data_dir, experiment_date_id,
-                                                          "taskmanager_job_task_idleTimeMsPerSecond",
-                                                          file_date, "lrb_replicating", parallelism_level,
-                                                          scheduling_period, num_parts, iter, exp_host)
-            repl_idle_time_grouped_df = get_grouped_df(idle_time_col_list, lrb_replicating_idle_time_file)
-            plot_metric(repl_idle_time_grouped_df, x_label, y_label, plot_title_base + "Replicating",
-                        group_by_col_name, plot_filename_base + "replicating", experiment_date_id, iter)
-
-        if has_adaptive_metrics:
-            lrb_adaptive_idle_time_file = get_filename(data_dir, experiment_date_id,
-                                                       "taskmanager_job_task_idleTimeMsPerSecond", file_date,
-                                                       "lrb_adaptive", parallelism_level, scheduling_period, num_parts,
-                                                       iter, exp_host)
-            adapt_idle_time_grouped_df = get_grouped_df(idle_time_col_list, lrb_adaptive_idle_time_file)
-            plot_metric(adapt_idle_time_grouped_df, x_label, y_label, plot_title_base + "Adaptive",
-                        group_by_col_name, plot_filename_base + "adaptive", experiment_date_id, iter)
-
-        if has_scheduling_only_metrics:
-            lrb_scheduling_idle_time_file = get_filename(data_dir, experiment_date_id,
-                                                         "taskmanager_job_task_idleTimeMsPerSecond", file_date,
-                                                         "lrb_scheduling", parallelism_level, scheduling_period,
-                                                         num_parts, iter, exp_host)
-            sched_idle_time_grouped_df = get_grouped_df(idle_time_col_list, lrb_scheduling_idle_time_file)
-            plot_metric(sched_idle_time_grouped_df, x_label, y_label, plot_title_base + "Scheduling",
-                        group_by_col_name, plot_filename_base + "scheduling", experiment_date_id, iter)
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["Idle Time", "idle_time", "(ms/sec)"]
+        col_lists[METRIC_TYPE_IDLE_TIME] = ["name", "task_name", "subtask_index", "time", "value"]
+        group_by_col_names = ["time", "task_name"]
+        plot_graphs_for("taskmanager_job_task_idleTimeMsPerSecond", col_lists[METRIC_TYPE_IDLE_TIME],
+                        metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, group_by_cols=group_by_col_names,
+                        filter_cols=['fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1'])
 
     if plot_backpressure:
-        backpressured_time_col_list = ["name", "task_name", "subtask_index", "time", "value"]
-        x_label = "Time (sec)"
-        y_label = "ms/sec"
-        plot_title_base = "BP Time (ms/sec) - "
-        plot_filename_base = "backpressured_time_"
-        group_by_col_name = "task_name"
+        print("Plotting back-pressured time...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        lrb_default_backpressured_time_file = get_filename(data_dir, experiment_date_id,
-                                                           "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                           file_date, default_id_str, parallelism_level,
-                                                           default_sched_period, num_parts, iter, exp_host)
-        backpressured_time_grouped_df = get_grouped_df(backpressured_time_col_list, lrb_default_backpressured_time_file)
-        plot_metric(backpressured_time_grouped_df, x_label, y_label, plot_title_base + "Default",
-                    group_by_col_name, plot_filename_base + "default", experiment_date_id, iter)
-
-        if has_replicating_only_metrics:
-            lrb_replicating_backpressured_time_file = get_filename(data_dir, experiment_date_id,
-                                                                   "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                                   file_date, "lrb_replicating",
-                                                                   parallelism_level, scheduling_period, num_parts,
-                                                                   iter, exp_host)
-            repl_backpressured_time_grouped_df = get_grouped_df(backpressured_time_col_list,
-                                                                lrb_replicating_backpressured_time_file)
-            plot_metric(repl_backpressured_time_grouped_df, x_label, y_label, plot_title_base + "Replicating",
-                        group_by_col_name, plot_filename_base + "replicating", experiment_date_id, iter)
-
-        if has_adaptive_metrics:
-            lrb_adaptive_backpressured_time_file = get_filename(data_dir, experiment_date_id,
-                                                                "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                                file_date, "lrb_adaptive", parallelism_level,
-                                                                scheduling_period, num_parts, iter, exp_host)
-            adapt_backpressured_time_grouped_df = get_grouped_df(backpressured_time_col_list,
-                                                                 lrb_adaptive_backpressured_time_file)
-            plot_metric(adapt_backpressured_time_grouped_df, x_label, y_label, plot_title_base + "Adaptive",
-                        group_by_col_name, plot_filename_base + "adaptive", experiment_date_id, iter)
-
-        if has_scheduling_only_metrics:
-            lrb_scheduling_backpressured_time_file = get_filename(data_dir, experiment_date_id,
-                                                                  "taskmanager_job_task_backPressuredTimeMsPerSecond",
-                                                                  file_date, "lrb_scheduling",
-                                                                  parallelism_level, scheduling_period, num_parts, iter,
-                                                                  exp_host)
-            sched_backpressured_time_grouped_df = get_grouped_df(backpressured_time_col_list,
-                                                                 lrb_scheduling_backpressured_time_file)
-            plot_metric(sched_backpressured_time_grouped_df, x_label, y_label, plot_title_base + "Scheduling",
-                        group_by_col_name, plot_filename_base + "scheduling", experiment_date_id, iter)
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["BP Time", "bp_time", "(ms/sec)"]
+        col_lists[METRIC_TYPE_BP_TIME] = ["name", "task_name", "subtask_index", "time", "value"]
+        group_by_col_names = ["time", "task_name"]
+        plot_graphs_for("taskmanager_job_task_backPressuredTimeMsPerSecond", col_lists[METRIC_TYPE_BP_TIME],
+                        metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, group_by_cols=group_by_col_names,
+                        filter_cols=['fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1'])
 
     if plot_iq_len:
-        iq_len_col_list = ["name", "task_name", "subtask_index", "time", "value"]
-        x_label = "Time (sec)"
-        y_label = "Num. buffers"
-        plot_title_base = "Input Queue Length - "
-        plot_filename_base = "iq_len_"
-        group_by_col_name = "task_name"
+        print("Plotting input queue length...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        lrb_default_iq_len_file = get_filename(data_dir, experiment_date_id,
-                                               "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
-                                               file_date, default_id_str, parallelism_level,
-                                               default_sched_period, num_parts, iter, exp_host)
-        iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_default_iq_len_file)
-        plot_metric(iq_len_grouped_df, x_label, y_label, plot_title_base + "Default", group_by_col_name,
-                    plot_filename_base + "default", experiment_date_id, iter)
-
-        if has_adaptive_metrics:
-            lrb_adaptive_iq_len_file = get_filename(data_dir, experiment_date_id,
-                                                    "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
-                                                    file_date, "lrb_adaptive", parallelism_level,
-                                                    scheduling_period, num_parts, iter, exp_host)
-            adapt_iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_adaptive_iq_len_file)
-            plot_metric(adapt_iq_len_grouped_df, x_label, y_label, plot_title_base + "Adaptive", group_by_col_name,
-                        plot_filename_base + "adaptive", experiment_date_id, iter)
-
-        if has_scheduling_only_metrics:
-            lrb_scheduling_iq_len_file = get_filename(data_dir, experiment_date_id,
-                                                      "taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
-                                                      file_date, "lrb_scheduling", parallelism_level,
-                                                      scheduling_period, num_parts, iter, exp_host)
-            sched_iq_len_grouped_df = get_grouped_df(iq_len_col_list, lrb_scheduling_iq_len_file)
-            plot_metric(sched_iq_len_grouped_df, x_label, y_label, plot_title_base + "Scheduling", group_by_col_name,
-                        plot_filename_base + "scheduling", experiment_date_id, iter)
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["Input Queue Length", "iq_len", "(# buffers)"]
+        col_lists[METRIC_TYPE_IQ_LEN] = ["name", "task_name", "subtask_index", "time", "value"]
+        group_by_col_names = ["time", "task_name"]
+        plot_graphs_for("taskmanager_job_task_Shuffle_Netty_Input_Buffers_inputQueueLength",
+                        col_lists[METRIC_TYPE_IQ_LEN],
+                        metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, group_by_cols=group_by_col_names,
+                        filter_cols=['fil_1', 'tsw_1', 'prj_1', 'Sink: sink_1'])
 
     if plot_nw:
-        nw_col_list = ["name", "host", "time", "value"]
-        x_label = "Time (sec)"
-        y_label = "Bytes/sec"
-        plot_title_base = "Network Receive Rate - "
-        plot_filename_base = "nw_"
-        group_by_col_name = "host"
         nw_if = "enp4s0"
+        print("Plotting network rcv rate...")
+        lrb_file_names = {}
+        lrb_metric_dfs = {}
+        lrb_metric_avgs = {}
 
-        lrb_default_nw_file = get_filename(data_dir, experiment_date_id,
-                                           "taskmanager_System_Network_" + nw_if + "_ReceiveRate", file_date,
-                                           default_id_str, parallelism_level, default_sched_period, num_parts, iter,
-                                           exp_host)
-        nw_df = get_df_without_groupby(nw_col_list, lrb_default_nw_file)
-        combined_df = nw_df
-        combined_df['sched_policy'] = "LRB-Default"
-        plot_metric(nw_df, x_label, y_label, plot_title_base + "Default", group_by_col_name,
-                    plot_filename_base + "default", experiment_date_id, iter)
-
-        if has_adaptive_metrics:
-            lrb_adaptive_nw_file = get_filename(data_dir, experiment_date_id,
-                                                "taskmanager_System_Network_" + nw_if + "_ReceiveRate",
-                                                file_date, "lrb_adaptive", parallelism_level,
-                                                scheduling_period, num_parts, iter, exp_host)
-            adapt_nw_df = get_df_without_groupby(nw_col_list, lrb_adaptive_nw_file)
-            combined_df = combine_df_without_groupby(combined_df, nw_col_list, lrb_adaptive_nw_file, "LRB-Adaptive")
-            plot_metric(adapt_nw_df, x_label, y_label, plot_title_base + "Adaptive", group_by_col_name,
-                        plot_filename_base + "adaptive", experiment_date_id, iter)
-
-        if has_scheduling_only_metrics:
-            lrb_scheduling_nw_file = get_filename(data_dir, experiment_date_id,
-                                                  "taskmanager_System_Network_" + nw_if + "_ReceiveRate",
-                                                  file_date, "lrb_scheduling", parallelism_level,
-                                                  scheduling_period, num_parts, iter, exp_host)
-            sched_nw_df = get_df_without_groupby(nw_col_list, lrb_scheduling_nw_file)
-            combined_df = combine_df_without_groupby(combined_df, nw_col_list, lrb_scheduling_nw_file, "LRB-Scheduling")
-            plot_metric(sched_nw_df, x_label, y_label, plot_title_base + "Scheduling", group_by_col_name,
-                        plot_filename_base + "scheduling", experiment_date_id, iter)
-
-        combined_df = combined_df.loc[
-            (combined_df.index > lower_time_threshold) & (combined_df.index < upper_time_threshold)]
-        plot_metric(combined_df, x_label, y_label, "Network Receive Rate", "sched_policy", "nw_rcv", experiment_date_id,
-                    iter)
+        target_attributes_for_metric = ["value"]
+        metric_type_labels = ["Network Receive Rate", "nw", "(Bytes/sec)"]
+        col_lists[METRIC_TYPE_NW] = ["name", "host", "time", "value"]
+        group_by_col_names = ["time", "host"]
+        metric_name = "taskmanager_System_Network_{}_ReceiveRate".format(nw_if)
+        plot_graphs_for(metric_name,
+                        col_lists[METRIC_TYPE_NW],
+                        metric_type_labels,
+                        target_attributes_for_metric, lrb_scheduling_policies, lrb_file_names, lrb_metric_dfs,
+                        lrb_metric_avgs, group_by_cols=group_by_col_names)

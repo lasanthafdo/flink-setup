@@ -43,3 +43,5 @@ fabric.properties
 
 *.png
 analysis-scripts/results/**
+analysis-scripts/config.json
+graphy/**
