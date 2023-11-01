@@ -278,7 +278,7 @@ if __name__ == '__main__':
     os.makedirs(results_dir, exist_ok=True)
     scheduling_period = args.schedperiod
 
-    upper_time_threshold = 1200
+    upper_time_threshold = 3600
     lower_time_threshold = 0
     plot_tp = True
     plot_latency = True

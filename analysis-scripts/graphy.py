@@ -323,8 +323,8 @@ def plot_graphs_for(tgt_metric_name, col_list, tgt_metric_lbls, tgt_attribs, tgt
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     data_dir = "/home/m34ferna/flink-tests/data"
-    experiment_date_id = "oct-26-1"
-    file_date = "2023_10_26"
+    experiment_date_id = "oct-28-1"
+    file_date = "2023_10_28"
     parallelism_level = "1"
     num_parts = "1"
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
@@ -367,7 +367,7 @@ if __name__ == '__main__':
     lrb_op_name_id_dicts = {}
     col_lists = {}
     metric_names = {}
-    iter = "1_2_"
+    iter = "2_2_"
 
     if plot_tp:
         flink_col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
@@ -383,8 +383,6 @@ if __name__ == '__main__':
         lrb_file_names = {}
         lrb_metric_dfs = {}
         lrb_metric_avgs = {}
-
-        fig, ax = plt.subplots(figsize=(8, 5))
 
         target_attributes_for_metric = ["rate", "count"]
         metric_type_labels = ["Throughput", "TP", "events/sec"]
@@ -541,8 +539,6 @@ if __name__ == '__main__':
         lrb_metric_dfs = {}
         lrb_metric_avgs = {}
 
-        fig, ax = plt.subplots(figsize=(8, 5))
-
         target_attributes_for_metric = ["value"]
         metric_type_labels = ["CPU Usage", "CPU", "(%)"]
         col_lists[METRIC_TYPE_CPU] = ["name", "time", "value"]
@@ -555,8 +551,6 @@ if __name__ == '__main__':
         lrb_file_names = {}
         lrb_metric_dfs = {}
         lrb_metric_avgs = {}
-
-        fig, ax = plt.subplots(figsize=(8, 5))
 
         target_attributes_for_metric = ["value"]
         metric_type_labels = ["Heap Memory", "mem", "MB"]
