@@ -4,21 +4,23 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
 import argparse
+import json
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
-import json
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
 
 
-def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset):
+def get_formatted_tput(lrb_num_out_file, column_list, lower_threshold, upper_threshold, offset,
+                       target_op_for_tp):
     print("Reading file " + lrb_num_out_file + " filtering events between " + str(lower_threshold) + " and " + str(
         upper_threshold) + " seconds")
     lrb_df = pd.read_csv(lrb_num_out_file, usecols=column_list)
-    lrb_target_op_df = lrb_df[lrb_df['operator_name'].str.contains('fil_1')].drop(
+    lrb_target_op_df = lrb_df[lrb_df['operator_name'].str.contains(target_op_for_tp)].drop(
         ['name'], axis=1).groupby(['time'])[['rate', 'count']].sum().reset_index()
     lrb_target_op_df['rel_time'] = lrb_target_op_df['time'].subtract(lrb_target_op_df['time'].min()).div(
         1_000_000_000).subtract(offset)
@@ -160,9 +162,10 @@ def get_pivoted_alt_latency(lrb_latency_file, column_list, target_stat, upper_th
     return lrb_pivoted_latency_df
 
 
-def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offsets, lrb_labels, default_id_str,
-                                default_sched_period, scheduling_period, num_iters, target_metric, user_ylabel,
-                                simple_metric_name, user_xlabel="Elapsed Time (sec)", exp_host="tem104"):
+def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offsets, lrb_labels, default_sched_period,
+                                scheduling_period, num_iters, target_metric, user_ylabel,
+                                simple_metric_name, user_xlabel="Elapsed Time (sec)", exp_host="tem104",
+                                target_op='fil_1'):
     lrb_file_names = {}
     lrb_metric_dfs = {}
     lrb_metric_avgs = {}
@@ -185,7 +188,7 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
                     lower_time_threshold,
                     upper_time_threshold,
                     lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
-                        "lrb_default"])
+                        "lrb_default"], target_op)
                 lrb_op_name_id_dicts[iter_policy_id] = get_op_name_id_mapping(lrb_file_names[iter_policy_id])
                 ax._get_lines.get_next_color()
             else:
@@ -212,7 +215,7 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
                         lower_time_threshold,
                         upper_time_threshold,
                         lrb_offsets[scheduling_policy] if lrb_offsets[scheduling_policy] >= 0 else lrb_offsets[
-                            "lrb_default"])
+                            "lrb_default"], target_op)
                     lrb_metric_avgs_per_iter[get_iteration_id(iter, is_global_iter, scheduling_policy)] = \
                         lrb_metric_avgs[iter_policy_id]
                     lrb_op_name_id_dicts[iter_policy_id] = get_op_name_id_mapping(lrb_file_names[iter_policy_id])
@@ -246,6 +249,7 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
 def get_iteration_id(iter, is_global_iter, scheduling_policy):
     return scheduling_policy + " - " + str(iter.split("_")[0] if is_global_iter else iter.split("_")[1])
 
+
 def load_config():
     try:
         with open("config.json", "r") as file:
@@ -254,6 +258,7 @@ def load_config():
         raise Exception("Configuration file 'config.json' not found. Please create it based on 'config.example.json'.")
     except json.JSONDecodeError:
         raise Exception("Error parsing 'config.json'. Please ensure it's correctly formatted.")
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -310,16 +315,19 @@ if __name__ == '__main__':
     lrb_scheduling_policies = args.policies.split(",")
     default_sched_period = scheduling_period
     lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_schedidling": -1, "lrb_scheduling": -1, "lrb_bpscheduling": -1,
-                   "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1, "lrb_bpmitigation": -1}
+                   "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1, "lrb_bpmitigation": -1,
+                   "lrb_bplatency": -1, "lrb_dynbuffers": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
                   "lrb_schedidling": "LRB-Scheduling with blocking", "lrb_osdef": "LRB-OS default",
                   "lrb_bpscheduling": "LRB-Scheduling BP", "lrb_bposdef": "LRB-OS default BP",
                   "lrb_bplqf": "LRB-Largest Q First BP", "lrb_lqf": "LRB-Largest Q First",
-                  "lrb_bpmitigation": "LRB-Backpressure Mitigation"}
+                  "lrb_bpmitigation": "LRB-Backpressure Mitigation", "lrb_bplatency": "LRB-BP Latency Mitigation",
+                  "lrb_dynbuffers": "LRB-Dynamic Buffers"}
     lrb_op_name_id_dicts = {}
     iter_to_skip = []
     local_iter_default = "2"
     is_global_iter = True
+    tgt_op_for_tp = "fil_1"
 
     if plot_tp:
         flink_col_list = ["name", "time", "operator_name", "operator_id", "task_name", "subtask_index", "count", "rate"]
@@ -335,10 +343,10 @@ if __name__ == '__main__':
 
         lrb_file_names, lrb_src_tp_dfs, ax = calc_plot_graphs_for_metric(flink_metric_name, lrb_scheduling_policies,
                                                                          lrb_offsets, lrb_labels,
-                                                                         default_id_str, default_sched_period,
+                                                                         default_sched_period,
                                                                          scheduling_period, num_iters, "rate",
                                                                          "Rate (events/sec)", "Throughput",
-                                                                         exp_host=exp_host)
+                                                                         exp_host=exp_host, target_op=tgt_op_for_tp)
 
         if not use_alt_metrics:
             count_fig, count_ax = plt.subplots(figsize=(12, 6))
