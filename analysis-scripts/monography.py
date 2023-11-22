@@ -6,6 +6,7 @@
 import argparse
 import json
 import os
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -242,7 +243,8 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
         "custom_" if use_alt_metrics else "flink_") + parallelism_level + "_" + experiment_date_id + ".png")
     plt.show()
 
-    print("Metric avgs" + str(lrb_metric_avgs_per_iter))
+    logging.info("Throughput avgs" + str(lrb_metric_avgs_per_iter))
+    logging.info("Mean throughput avg: " + str(np.mean(list(lrb_metric_avgs_per_iter.values()))))
     return lrb_file_names, lrb_metric_dfs, ax
 
 
@@ -281,6 +283,8 @@ if __name__ == '__main__':
     src_parallelism = args.src_parallelism
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
+    log_file = results_dir + "/monography.log"
+    logging.basicConfig(filename=log_file, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     scheduling_period = args.schedperiod
 
     upper_time_threshold = 3600
@@ -473,7 +477,8 @@ if __name__ == '__main__':
                     "custom_" if use_alt_metrics else "flink_") + scheduling_policy + "_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
             plt.show()
 
-        print("Latency avgs: " + str(lrb_latency_avgs))
+        logging.info("Latency avgs: " + str(lrb_latency_avgs))
+        logging.info("Mean latency avg: " + str(np.mean(list(lrb_latency_avgs.values()))))
         fig_lat, ax = plt.subplots(figsize=(8, 5))
         for iter, lat_avg in lrb_latency_avgs.items():
             ax.bar(iter, lat_avg)
