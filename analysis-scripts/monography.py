@@ -320,13 +320,13 @@ if __name__ == '__main__':
     default_sched_period = scheduling_period
     lrb_offsets = {"lrb_default": 0, "lrb_pd": -1, "lrb_schedidling": -1, "lrb_scheduling": -1, "lrb_bpscheduling": -1,
                    "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1, "lrb_bpmitigation": -1,
-                   "lrb_bplatency": -1, "lrb_dynbuffers": -1, "lrb_mm": -1}
+                   "lrb_bplatency": -1, "lrb_dynbuffers": -1, "lrb_mm": -1, "lrb_blockreschedule": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_pd": "LRB-PD", "lrb_scheduling": "LRB-Scheduling",
                   "lrb_schedidling": "LRB-Scheduling with blocking", "lrb_osdef": "LRB-OS default",
                   "lrb_bpscheduling": "LRB-Scheduling BP", "lrb_bposdef": "LRB-OS default BP",
                   "lrb_bplqf": "LRB-Largest Q First BP", "lrb_lqf": "LRB-Largest Q First",
                   "lrb_bpmitigation": "LRB-Backpressure Mitigation", "lrb_bplatency": "LRB-BP Latency Mitigation",
-                  "lrb_dynbuffers": "LRB-Dynamic Buffers", "lrb_mm": "LRB-Min Memory"}
+                  "lrb_dynbuffers": "LRB-Dynamic Buffers", "lrb_mm": "LRB-Min Memory", "lrb_blockreschedule": "LRB-Block Reschedule"}
     lrb_op_name_id_dicts = {}
     iter_to_skip = []
     local_iter_default = "2"
