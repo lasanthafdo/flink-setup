@@ -6,12 +6,11 @@
 import argparse
 import json
 import os
+from statistics import fmean
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
-from statistics import fmean
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)
@@ -247,7 +246,7 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
     print(metric_avgs_iter_dict)
 
     x = np.arange(len(lrb_scheduling_policies))
-    width = 0.25  # the width of the bars
+    width = 0.8 / num_iters  # the width of the bars
     multiplier = 0
     for itr, encoded_measurements in metric_avgs_iter_dict.items():
         offset = width * multiplier
@@ -256,20 +255,22 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
             policy = value.split(":")[0]
             assert lrb_scheduling_policies[idx] == policy
             derived_measurements.append(float(value.split(":")[1]))
-        rects = ax_bar.bar(x + offset, derived_measurements, width, label=itr)
-        ax_bar.bar_label(rects, padding=3)
+        ax_bar.bar(x + offset, derived_measurements, width, label=itr)
+        # ax_bar.bar_label(rects, padding=3)
         multiplier += 1
 
     line_colors = ['red', 'black', 'green', 'blue']
     color_cylce = 0
     for pol, measurements in metric_avgs_policy_dict.items():
-        ax_bar.axhline(fmean(measurements), linestyle='--', color=line_colors[color_cylce])
+        avg_metric = round(fmean(measurements))
+        ax_bar.axhline(avg_metric, linestyle='--', color=line_colors[color_cylce])
+        ax_bar.text(color_cylce, avg_metric + 10000, "Avg (" + pol + ") = " + str(avg_metric))
         color_cylce += 1
 
     ax_bar.set(xlabel="Scheduling Policy", ylabel=user_ylabel,
                title=("Custom " if use_alt_metrics else "Flink ") + simple_metric_name)
     ax_bar.set_xticks(x + width, lrb_current_policy_labels)
-    ax_bar.legend()
+    ax_bar.legend(loc="lower right")
     # ax_bar.tick_params(axis="x", rotation=90)
     plt.tight_layout()
     plt.savefig(results_dir + "/" + simple_metric_name.lower() + "_bar_" + (
@@ -512,40 +513,50 @@ if __name__ == '__main__':
         target_op_name = 'Sink: sink_1'
         target_stat = 'mean'
         all_latency_graph_y_top = 300
-        lrb_latency_file_names = {}
-        lrb_latency_dfs = {}
-        lrb_latency_avgs = {}
-        lrb_latency_pivoted_dfs = {}
+        et_latency_file_names = {}
+        et_latency_dfs = {}
+        et_latency_avgs_iter_dict = {}
+        et_latency_avgs_policy_dict = {}
+        et_latency_pivoted_dfs = {}
+        lrb_current_policy_labels = []
 
         for scheduling_policy in lrb_scheduling_policies:
+            current_policy_lbl = lrb_labels[scheduling_policy]
+            lrb_current_policy_labels.append(current_policy_lbl)
+            et_latency_avgs_policy_dict[current_policy_lbl] = list()
             fig_all_ops, ax_all_ops = plt.subplots(figsize=(8, 6))
             for iter_val in range(1, num_iters + 1):
                 if iter_val in iter_to_skip: continue
+                iter_lbl = "Iter " + str(iter_val)
+                if not iter_lbl in et_latency_avgs_iter_dict:
+                    et_latency_avgs_iter_dict[iter_lbl] = list()
                 iter = str(iter_val) + "_" + local_iter_default + "_" if is_global_iter else "0_" + str(iter_val) + "_"
                 iter_policy_id = iter + scheduling_policy
                 if not skip_default or scheduling_policy != "lrb_default":
-                    lrb_latency_file_names[iter_policy_id] = get_filename(data_dir, experiment_date_id, metric_name,
+                    et_latency_file_names[iter_policy_id] = get_filename(data_dir, experiment_date_id, metric_name,
                                                                           file_date,
                                                                           scheduling_policy, parallelism_level,
                                                                           default_sched_period if scheduling_policy == "lrb_default" else scheduling_period,
                                                                           src_parallelism, iter, exp_host)
-                    lrb_latency_dfs[iter_policy_id], lrb_latency_avgs[
-                        get_iteration_id(iter, is_global_iter, scheduling_policy)] = get_formatted_alt_latency(
-                        lrb_latency_file_names[iter_policy_id], col_list,
+                    et_latency_dfs[iter_policy_id], et_lat_avg = get_formatted_alt_latency(
+                        et_latency_file_names[iter_policy_id], col_list,
                         lower_time_threshold,
                         upper_time_threshold,
                         lrb_offsets["lrb_default"],
                         target_op_name, target_stat)
-                    lrb_latency_pivoted_dfs[iter_policy_id] = get_pivoted_alt_latency(
-                        lrb_latency_file_names[iter_policy_id],
+                    et_latency_avgs_iter_dict[iter_lbl].append(scheduling_policy + ":" + str(et_lat_avg))
+                    et_latency_avgs_policy_dict[current_policy_lbl].append(et_lat_avg)
+
+                    et_latency_pivoted_dfs[iter_policy_id] = get_pivoted_alt_latency(
+                        et_latency_file_names[iter_policy_id],
                         col_list,
                         target_stat,
                         upper_time_threshold,
                         lower_time_threshold)
 
-                    print(lrb_latency_pivoted_dfs[iter_policy_id])
-                    ax_all_ops.plot(lrb_latency_pivoted_dfs[iter_policy_id]["rel_time"],
-                                    lrb_latency_pivoted_dfs[iter_policy_id]["Sink: sink_1"],
+                    print(et_latency_pivoted_dfs[iter_policy_id])
+                    ax_all_ops.plot(et_latency_pivoted_dfs[iter_policy_id]["rel_time"],
+                                    et_latency_pivoted_dfs[iter_policy_id]["Sink: sink_1"],
                                     label="Sink - Iter: " + get_iteration_id(iter, is_global_iter, scheduling_policy))
 
             ax_all_ops.set(xlabel="Time (sec)", ylabel="Latency (ms)",
@@ -557,17 +568,39 @@ if __name__ == '__main__':
                 results_dir + "/latency_gen_to_sink_" + scheduling_policy + "_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
             plt.show()
 
-        print("Latency avgs: " + str(lrb_latency_avgs))
-        fig_lat, ax = plt.subplots(figsize=(8, 5))
-        for iter, lat_avg in lrb_latency_avgs.items():
-            ax.bar(iter, lat_avg)
+        print("Latency avgs: " + str(et_latency_avgs_iter_dict))
+        fig_lat, ax_lat = plt.subplots(figsize=(8, 5))
 
-        ax.set(xlabel="Iteration", ylabel="Time (ms)",
+        x = np.arange(len(lrb_scheduling_policies))
+        width = 0.8 / num_iters  # the width of the bars
+        multiplier = 0
+        for itr, encoded_measurements in et_latency_avgs_iter_dict.items():
+            offset = width * multiplier
+            derived_measurements = []
+            for idx, value in enumerate(encoded_measurements):
+                policy = value.split(":")[0]
+                assert lrb_scheduling_policies[idx] == policy
+                derived_measurements.append(float(value.split(":")[1]))
+            ax_lat.bar(x + offset, derived_measurements, width, label=itr)
+            # ax_bar.bar_label(rects, padding=3)
+            multiplier += 1
+
+        line_colors = ['red', 'black', 'green', 'blue']
+        color_cylce = 0
+        for pol, measurements in et_latency_avgs_policy_dict.items():
+            avg_metric = round(fmean(measurements))
+            ax_lat.axhline(avg_metric, linestyle='--', color=line_colors[color_cylce])
+            ax_lat.text(color_cylce, avg_metric + 10000, "Avg (" + pol + ") = " + str(avg_metric))
+            color_cylce += 1
+
+        # for iter, lat_avg in et_latency_avgs.items():
+        #     ax_lat.bar(iter, lat_avg)
+
+        ax_lat.set(xlabel="Iteration", ylabel="Time (ms)",
                title="Gen-to-sink Latency (" + target_stat + ") - Operator: " + target_op_name)
-        ax.tick_params(axis="x", rotation=90)
-        # ax.set_ylim(0, all_latency_graph_y_top)
-        ax.set_ylim(bottom=0)
-        ax.legend()
+        ax_lat.set_xticks(x + width, lrb_current_policy_labels)
+        ax_lat.set_ylim(bottom=0)
+        ax_lat.legend()
         plt.tight_layout()
         plt.savefig(
             results_dir + "/latency_bar_gen_to_sink_" + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
