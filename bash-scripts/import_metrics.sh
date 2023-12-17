@@ -4,7 +4,10 @@ if [[ $# -lt 2 ]]; then
 	echo "Usage: import_metrics.sh <TARGET_DATE> <EXP_ID>"
 fi
 
+# Configure these according to local setup
+REMOTE_USER="m34ferna"
 ANALYSIS_SCRIPT_DIR=/home/m34ferna/src/flink-setup/analysis-scripts
+
 MONOGRAPHY_SCRIPT=$ANALYSIS_SCRIPT_DIR/monography.py
 STAT_METRICS_DIR=${1}-${2}
 TARGET_DATE=`echo $1 | cut -d '-' -f2`
@@ -18,7 +21,7 @@ FORMAT_DATE=`echo ${1//-/ }`
 METRICS_DATE=$(date --date="$(echo "$FORMAT_DATE 2023")" +"%Y_%m_%d")
 PREV_METRICS_DATE=`echo ${METRICS_DATE}_${PREV_DATE} | cut -d '_' -f1,2,4`
 echo "Metrics date: $METRICS_DATE , Previous metrics date: $PREV_METRICS_DATE"
-scp "m34ferna@tembo.cs.uwaterloo.ca:/home/m34ferna/flink-scheduling/data/lrb_*_${METRICS_DATE}_${2}_*.tar.gz" .
+scp "${REMOTE_USER}@tembo.cs.uwaterloo.ca:/home/${REMOTE_USER}/flink-scheduling/data/lrb_*_${METRICS_DATE}_${2}_*.tar.gz" .
 cat *.tar.gz | tar xvzf - -i | grep .csv | awk -F'lrb' '{print $2}' | cut -d '_' -f2,4,5,6 > temp_output.txt
 echo "Untar output captured."
 
@@ -62,4 +65,4 @@ echo "Perf metrics directory: $PERF_METRICS_DIR"
 mkdir $PERF_METRICS_DIR
 cd $PERF_METRICS_DIR
 
-scp "m34ferna@tembo.cs.uwaterloo.ca:/home/m34ferna/flink-scheduling/data/perf/${STAT_METRICS_DIR}/*.txt" .
+scp "${REMOTE_USER}@tembo.cs.uwaterloo.ca:/home/${REMOTE_USER}/flink-scheduling/data/perf/${STAT_METRICS_DIR}/*.txt" .
