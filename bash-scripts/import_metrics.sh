@@ -2,11 +2,12 @@
 
 if [[ $# -lt 2 ]]; then
 	echo "Usage: import_metrics.sh <TARGET_DATE> <EXP_ID>"
+	exit 1
 fi
 
 # Configure these according to local setup
-REMOTE_USER="m34ferna"
-ANALYSIS_SCRIPT_DIR=/home/m34ferna/src/flink-setup/analysis-scripts
+REMOTE_USER="z446zhou"
+ANALYSIS_SCRIPT_DIR=/Users/jayzhou/git/flink-setup/analysis-scripts
 
 MONOGRAPHY_SCRIPT=$ANALYSIS_SCRIPT_DIR/monography.py
 STAT_METRICS_DIR=${1}-${2}
