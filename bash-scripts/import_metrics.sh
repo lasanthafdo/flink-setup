@@ -47,7 +47,6 @@ elif [ "$OS" = "MacOS" ]; then
 			tar -xvzf "$file" 2>&1 | grep .csv | awk -F'tem104_lrb' '{print $2}' | cut -d '_' -f2,4,5,6 >> temp_output.txt
 		fi
 	done
-	cat *.tar.gz | tar xvzf - 2>&1 | grep .csv | awk -F'tem104_lrb' '{print $2}' | cut -d '_' -f2,4,5,6 > temp_output.txt
 fi
 echo "Untar output captured."
 
