@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 from statistics import fmean
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -277,7 +278,8 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
         "custom_" if use_alt_metrics else "flink_") + parallelism_level + "_" + experiment_date_id + ".png")
     plt.show()
 
-    print("Metric avgs" + str(metric_avgs_iter_dict))
+    logging.info("Throughput avgs" + str(metric_avgs_iter_dict))
+    logging.info("Mean throughput avg: " + str(np.mean(list(lrb_metric_avgs_per_iter.values()))))
     return lrb_file_names, lrb_metric_dfs
 
 
@@ -316,6 +318,8 @@ if __name__ == '__main__':
     src_parallelism = args.src_parallelism
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
+    log_file = results_dir + "/monography.log"
+    logging.basicConfig(filename=log_file, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     scheduling_period = args.schedperiod
 
     upper_time_threshold = 3600
@@ -353,14 +357,14 @@ if __name__ == '__main__':
     lrb_offsets = {"lrb_default": 0, "lrb_def116": 0, "lrb_pd": -1, "lrb_schedidling": -1, "lrb_scheduling": -1,
                    "lrb_bpscheduling": -1,
                    "lrb_osdef": -1, "lrb_lqf": -1, "lrb_bposdef": -1, "lrb_bplqf": -1, "lrb_bpmitigation": -1,
-                   "lrb_bplatency": -1, "lrb_dynbuffers": -1, "lrb_osdefbpoff": -1, "lrb_adaptltncy": -1}
+                   "lrb_bplatency": -1, "lrb_dynbuffers": -1, "lrb_mm": -1, "lrb_blockreschedule": -1, "lrb_osdefbpoff": -1, "lrb_adaptltncy": -1}
     lrb_labels = {"lrb_default": "LRB-Default", "lrb_def116": "LRB-Default (1.16.x)", "lrb_pd": "LRB-PD",
                   "lrb_scheduling": "LRB-Scheduling",
                   "lrb_schedidling": "LRB-Scheduling with blocking", "lrb_osdef": "LRB-OS default",
                   "lrb_bpscheduling": "LRB-Scheduling BP", "lrb_bposdef": "LRB-OS default BP",
                   "lrb_bplqf": "LRB-Largest Q First BP", "lrb_lqf": "LRB-Largest Q First",
                   "lrb_bpmitigation": "LRB-Backpressure Mitigation", "lrb_bplatency": "LRB-BP Latency Mitigation",
-                  "lrb_dynbuffers": "LRB-Dynamic Buffers", "lrb_osdefbpoff": "LRB-OS default BP off",
+                  "lrb_dynbuffers": "LRB-Dynamic Buffers", "lrb_mm": "LRB-Min Memory", "lrb_blockreschedule": "LRB-Block Reschedule", "lrb_osdefbpoff": "LRB-OS default BP off",
                   "lrb_adaptltncy": "LRB-Adaptive Buffers"}
     lrb_op_name_id_dicts = {}
     iter_to_skip = []
@@ -568,7 +572,8 @@ if __name__ == '__main__':
                 results_dir + "/latency_gen_to_sink_" + scheduling_policy + "_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
             plt.show()
 
-        print("Latency avgs: " + str(et_latency_avgs_iter_dict))
+        logging.info("Latency avgs: " + str(et_latency_avgs_iter_dict))
+        logging.info("Mean latency avg: " + str(np.mean(list(lrb_latency_avgs.values()))))
         fig_lat, ax_lat = plt.subplots(figsize=(8, 5))
 
         x = np.arange(len(lrb_scheduling_policies))
