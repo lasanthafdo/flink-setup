@@ -263,6 +263,8 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
     line_colors = ['red', 'black', 'green', 'blue']
     color_cylce = 0
     for pol, measurements in metric_avgs_policy_dict.items():
+        logging.info("Throughput (" + pol + ") = " + str(measurements))
+        logging.info("Throughput Avg (" + pol + ") = " + str(fmean(measurements)))
         avg_metric = round(fmean(measurements))
         ax_bar.axhline(avg_metric, linestyle='--', color=line_colors[color_cylce])
         ax_bar.text(color_cylce, avg_metric + 10000, "Avg (" + pol + ") = " + str(avg_metric))
@@ -278,8 +280,6 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
         "custom_" if use_alt_metrics else "flink_") + parallelism_level + "_" + experiment_date_id + ".png")
     plt.show()
 
-    logging.info("Throughput avgs" + str(metric_avgs_iter_dict))
-    logging.info("Mean throughput avg: " + str(np.mean(list(lrb_metric_avgs_per_iter.values()))))
     return lrb_file_names, lrb_metric_dfs
 
 
@@ -572,8 +572,6 @@ if __name__ == '__main__':
                 results_dir + "/latency_gen_to_sink_" + scheduling_policy + "_" + parallelism_level + "_all_" + target_stat + "_" + experiment_date_id + ".png")
             plt.show()
 
-        logging.info("Latency avgs: " + str(et_latency_avgs_iter_dict))
-        logging.info("Mean latency avg: " + str(np.mean(list(lrb_latency_avgs.values()))))
         fig_lat, ax_lat = plt.subplots(figsize=(8, 5))
 
         x = np.arange(len(lrb_scheduling_policies))
@@ -593,6 +591,8 @@ if __name__ == '__main__':
         line_colors = ['red', 'black', 'green', 'blue']
         color_cylce = 0
         for pol, measurements in et_latency_avgs_policy_dict.items():
+            logging.info("Latency (" + pol + ") = " + str(measurements))
+            logging.info("Latency Avg (" + pol + ") = " + str(fmean(measurements)))
             avg_metric = round(fmean(measurements))
             ax_lat.axhline(avg_metric, linestyle='--', color=line_colors[color_cylce])
             ax_lat.text(color_cylce, avg_metric + 10000, "Avg (" + pol + ") = " + str(avg_metric))
