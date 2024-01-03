@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 from statistics import fmean
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -262,6 +263,8 @@ def calc_plot_graphs_for_metric(metric_name, lrb_scheduling_policies, lrb_offset
     line_colors = ['red', 'black', 'green', 'blue']
     color_cylce = 0
     for pol, measurements in metric_avgs_policy_dict.items():
+        logging.info("Throughput (" + pol + ") = " + str(measurements))
+        logging.info("Throughput Avg (" + pol + ") = " + str(fmean(measurements)))
         avg_metric = round(fmean(measurements))
         ax_bar.axhline(avg_metric, linestyle='--', color=line_colors[color_cylce])
         ax_bar.text(color_cylce, avg_metric + 10000, "Avg (" + pol + ") = " + str(avg_metric))
@@ -316,6 +319,7 @@ if __name__ == '__main__':
     results_dir = "results/" + experiment_date_id + "/par_" + parallelism_level
     os.makedirs(results_dir, exist_ok=True)
     log_file = results_dir + "/monography.log"
+    logging.basicConfig(filename=log_file, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     scheduling_period = args.schedperiod
 
     upper_time_threshold = 3600
@@ -587,6 +591,8 @@ if __name__ == '__main__':
         line_colors = ['red', 'black', 'green', 'blue']
         color_cylce = 0
         for pol, measurements in et_latency_avgs_policy_dict.items():
+            logging.info("Latency (" + pol + ") = " + str(measurements))
+            logging.info("Latency Avg (" + pol + ") = " + str(fmean(measurements)))
             avg_metric = round(fmean(measurements))
             ax_lat.axhline(avg_metric, linestyle='--', color=line_colors[color_cylce])
             ax_lat.text(color_cylce, avg_metric + 10000, "Avg (" + pol + ") = " + str(avg_metric))
