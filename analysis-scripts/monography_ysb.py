@@ -237,6 +237,7 @@ def calc_plot_graphs_for_metric(metric_name, ysb_scheduling_policies, ysb_offset
         ax.set(xlabel=user_xlabel, ylabel=user_ylabel,
                title=("Custom " if use_alt_metrics else "Flink ") + simple_metric_name)
         ax.tick_params(axis="x", rotation=0)
+        ax.set_ylim(bottom=0, top=2500000)
         ax.legend()
         plt.savefig(results_dir + "/" + simple_metric_name.lower() + "_" + (
             "custom_" if use_alt_metrics else "flink_") + scheduling_policy + "_" + parallelism_level + "_" + experiment_date_id + ".png")
@@ -319,7 +320,7 @@ if __name__ == '__main__':
     scheduling_period = args.schedperiod
 
     upper_time_threshold = 3600
-    lower_time_threshold = 0
+    lower_time_threshold = 100
     plot_tp = True
     plot_latency = True
     plot_event_time_latency = False
@@ -607,8 +608,8 @@ if __name__ == '__main__':
             results_dir + "/latency_bar_gen_to_sink_" + parallelism_level + "_" + target_op_name + "_" + target_stat + "_" + experiment_date_id + ".png")
         plt.show()
 
-    exit(0)
     if plot_cpu:
+        iter = "0_1_" if not is_global_iter else "1_2_"
         ysb_default_cpu_usage_file = get_filename(data_dir, experiment_date_id, "taskmanager_System_CPU_Usage",
                                                   file_date, default_id_str, parallelism_level,
                                                   default_sched_period, src_parallelism, iter, exp_host)
